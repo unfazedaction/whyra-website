@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#103B60" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>WHYRA Administration | Sign In</title>
+  <title>WHYRA Administration | Race Results</title>
   <style>
     :root { --blue:#103B60; --red:#B5232F; --ice:#E6F0F5; --ink:#213344; --muted:#526779; }
     * { box-sizing:border-box; }
@@ -17,27 +17,47 @@
     .brand strong { display:block; font-family:Georgia,'Times New Roman',serif; font-size:28px; letter-spacing:.06em; }
     .brand small { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.05em; line-height:1.5; }
     .back { color:#fff; font-weight:700; font-size:13px; text-decoration:underline; text-underline-offset:4px; }
-    main { width:min(460px,calc(100% - 32px)); margin:60px auto; flex:1; }
-    .panel { background:#fff; border:1px solid #cbd9e4; border-top:5px solid var(--red); padding:32px; box-shadow:0 10px 28px rgba(16,59,96,.09); }
-    h1 { margin:0 0 12px; color:var(--blue); font-family:Georgia,'Times New Roman',serif; font-size:31px; }
+    main { width:min(1040px,calc(100% - 32px)); margin:42px auto 60px; flex:1; }
+    body:not(.admin-ready) main { width:min(500px,calc(100% - 32px)); }
+    .panel { background:#fff; border:1px solid #cbd9e4; border-top:5px solid var(--red); padding:30px; box-shadow:0 10px 28px rgba(16,59,96,.09); }
+    h1,h2 { color:var(--blue); font-family:Georgia,'Times New Roman',serif; }
+    h1 { margin:0 0 12px; font-size:32px; }
+    h2 { margin:0 0 12px; font-size:24px; }
     p { line-height:1.55; }
-    .subtext { color:var(--muted); margin:0 0 28px; }
-    label { display:block; font-weight:700; margin:18px 0 7px; font-size:14px; }
-    input { display:block; width:100%; padding:13px; border:1px solid #a8bdcb; border-radius:3px; font:16px Arial,sans-serif; }
-    input:focus-visible, button:focus-visible, a:focus-visible { outline:3px solid #568eae; outline-offset:2px; }
-    button { display:block; width:100%; margin-top:25px; padding:14px; border:2px solid var(--red); background:var(--red); border-radius:3px; color:white; font:bold 14px Arial,sans-serif; cursor:pointer; }
+    .subtext { color:var(--muted); margin:0 0 22px; }
+    .section { border-top:1px solid #d8e5ec; padding-top:24px; margin-top:26px; }
+    label { display:block; font-weight:700; margin:16px 0 7px; font-size:14px; }
+    input,textarea { display:block; width:100%; padding:12px; border:1px solid #a8bdcb; border-radius:3px; background:#fff; color:var(--ink); font:16px Arial,sans-serif; }
+    textarea { min-height:150px; resize:vertical; line-height:1.55; }
+    input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid #568eae; outline-offset:2px; }
+    button { display:inline-block; padding:12px 16px; border:2px solid var(--red); background:var(--red); border-radius:3px; color:white; font:bold 14px Arial,sans-serif; cursor:pointer; }
     button:hover:not(:disabled) { background:#921b25; border-color:#921b25; }
     button:disabled { opacity:.65; cursor:wait; }
     .outline { border-color:var(--blue); background:#fff; color:var(--blue); }
     .outline:hover:not(:disabled) { background:var(--ice); border-color:var(--blue); }
-    .status { border-left:4px solid var(--blue); background:var(--ice); padding:12px 14px; margin-top:20px; font-size:14px; line-height:1.5; }
+    .danger { background:white; border-color:var(--red); color:var(--red); }
+    .danger:hover:not(:disabled) { background:#fff1f2; border-color:var(--red); }
+    .button-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; }
+    .status { border-left:4px solid var(--blue); background:var(--ice); padding:12px 14px; margin:20px 0 0; font-size:14px; line-height:1.5; }
     .status.error { border-left-color:var(--red); background:#fff1f2; }
     .status:empty { display:none; }
-    .details { background:#f5f9fb; padding:16px; border:1px solid #d8e5ec; margin-top:20px; font-size:14px; overflow-wrap:anywhere; }
+    .details { background:#f5f9fb; padding:14px; border:1px solid #d8e5ec; margin-top:16px; font-size:14px; overflow-wrap:anywhere; }
     .details strong { color:var(--blue); }
+    .layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:26px; align-items:start; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .checkbox-label { display:flex; gap:10px; align-items:center; font-weight:normal; margin:18px 0 6px; }
+    .checkbox-label input { width:18px; height:18px; flex:none; }
+    .hint { font-size:12px; color:var(--muted); margin:6px 0; }
+    .result-card { border:1px solid #cbd9e4; padding:16px; margin-top:12px; background:#fff; }
+    .result-card h3 { margin:0 0 6px; color:var(--blue); font-size:18px; }
+    .result-card p { margin:5px 0; }
+    .result-card pre { white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.5 Arial,sans-serif; margin:12px 0; }
+    .pill { font-size:11px; background:var(--ice); padding:4px 8px; display:inline-block; color:var(--blue); font-weight:bold; }
+    .pill.draft { background:#fff4db; color:#775300; }
     [hidden] { display:none !important; }
     footer { text-align:center; background:var(--blue); color:var(--ice); font-size:12px; padding:20px; }
-    @media(max-width:520px) { main { margin:32px auto; } .panel { padding:24px 20px; } .back { font-size:12px; } .brand strong { font-size:23px; } .brand small { max-width:165px; } }
+    @media(max-width:760px) { .layout,.field-row { grid-template-columns:1fr; } main { margin:30px auto; } .panel { padding:22px 18px; } }
+    @media(max-width:520px) { .brand strong { font-size:23px; } .brand small { max-width:165px; } .back { font-size:12px; } }
   </style>
 </head>
 <body>
@@ -50,34 +70,68 @@
       <a class="back" href="./index.html">← Public Website</a>
     </div>
   </header>
-
   <main>
-    <section class="panel" aria-labelledby="page-title">
-      <h1 id="page-title">Administrator Sign In</h1>
-      <p class="subtext">Authorized WHYRA website administrator access only.</p>
+    <section class="panel">
+      <h1>WHYRA Administration</h1>
+      <p class="subtext">Authorized website administrator access only.</p>
 
       <form id="login-form" hidden>
         <label for="email">Email address</label>
-        <input type="email" id="email" name="email" autocomplete="username" required />
+        <input type="email" id="email" autocomplete="username" required />
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required />
-        <button id="login-button" type="submit">Sign In</button>
+        <input type="password" id="password" autocomplete="current-password" required />
+        <div class="button-row"><button id="login-button" type="submit">Sign In</button></div>
       </form>
 
       <div id="dashboard" hidden>
         <div class="details">
           <strong>Administrator verified</strong>
-          <p>You are securely signed in as <span id="signed-in-email"></span>.</p>
-          <p>This confirms that Firebase Authentication recognizes the authorized WHYRA account. Race results and website management controls will be added in the next development steps.</p>
+          <p style="margin-bottom:0">Signed in as <span id="signed-in-email"></span>.</p>
         </div>
-        <button class="outline" id="logout-button" type="button">Sign Out</button>
+        <div class="button-row"><button class="outline" id="logout-button" type="button">Sign Out</button></div>
+        <div class="section layout">
+          <section aria-labelledby="edit-title">
+            <h2 id="edit-title">Publish Race Results</h2>
+            <p class="hint">Enter the race information and results. Save as a draft or publish immediately to Firestore.</p>
+            <form id="result-form">
+              <label for="race-name">Race name</label>
+              <input id="race-name" type="text" maxlength="120" placeholder="Wednesday Night Series — Race 1" required />
+              <div class="field-row">
+                <div>
+                  <label for="race-date">Race date</label>
+                  <input id="race-date" type="date" required />
+                </div>
+                <div>
+                  <label for="race-division">Division / fleet (optional)</label>
+                  <input id="race-division" type="text" maxlength="80" placeholder="PHRF" />
+                </div>
+              </div>
+              <label for="race-results">Results</label>
+              <textarea id="race-results" maxlength="20000" required placeholder="1. Boat Name — Skipper — Corrected time&#10;2. Boat Name — Skipper — Corrected time"></textarea>
+              <p class="hint">Use one line per boat. These results are stored as text; PDF/CSV uploads will be added later.</p>
+              <label for="race-notes">Notes (optional)</label>
+              <textarea id="race-notes" maxlength="4000" style="min-height:80px" placeholder="Weather, course information, race committee notes…"></textarea>
+              <label class="checkbox-label" for="race-published"><input id="race-published" type="checkbox" checked /> Publish these results</label>
+              <p class="hint">Uncheck to save an administrator-only draft.</p>
+              <div class="button-row">
+                <button id="save-button" type="submit">Publish Results</button>
+                <button id="cancel-edit" class="outline" type="button" hidden>Cancel Editing</button>
+              </div>
+            </form>
+          </section>
+          <section aria-labelledby="saved-title">
+            <h2 id="saved-title">Saved Race Results</h2>
+            <p class="hint">Select Edit to load a race into the form. Delete permanently removes that race.</p>
+            <p id="results-loading" class="hint">Loading race results…</p>
+            <div id="results-list" aria-live="polite"></div>
+          </section>
+        </div>
       </div>
 
       <div id="blocked" hidden>
         <p>This account is not authorized to manage WHYRA.org.</p>
         <button class="outline" id="blocked-logout" type="button">Sign Out</button>
       </div>
-
       <p id="status" class="status" role="status" aria-live="polite">Connecting securely to Firebase…</p>
     </section>
   </main>
@@ -85,9 +139,8 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-    import {
-      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
-    } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
@@ -100,71 +153,202 @@
     const ADMIN_UID = 'GrzNJ7HigKOEay5IipdEpbJ81zk2';
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
+    const $ = (id) => document.getElementById(id);
+    const loginForm = $('login-form');
+    const dashboard = $('dashboard');
+    const blocked = $('blocked');
+    const loginButton = $('login-button');
+    const resultForm = $('result-form');
+    const saveButton = $('save-button');
+    let stopResults = null;
+    let currentResults = [];
+    let editingId = null;
+    let saving = false;
 
-    const form = document.getElementById('login-form');
-    const dashboard = document.getElementById('dashboard');
-    const blocked = document.getElementById('blocked');
-    const status = document.getElementById('status');
-    const loginButton = document.getElementById('login-button');
-    const setStatus = (message, error = false) => {
-      status.textContent = message;
-      status.classList.toggle('error', error);
-      status.hidden = !message;
-    };
+    function setStatus(message, error = false) {
+      $('status').textContent = message;
+      $('status').classList.toggle('error', error);
+      $('status').hidden = !message;
+    }
+
+    function resetEditor() {
+      editingId = null;
+      resultForm.reset();
+      $('race-published').checked = true;
+      $('edit-title').textContent = 'Publish Race Results';
+      saveButton.textContent = 'Publish Results';
+      $('cancel-edit').hidden = true;
+    }
+
+    function displayResults() {
+      const list = $('results-list');
+      list.replaceChildren();
+      if (currentResults.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'hint';
+        empty.textContent = 'No race results saved yet.';
+        list.append(empty);
+        return;
+      }
+      for (const entry of currentResults) {
+        const card = document.createElement('article');
+        card.className = 'result-card';
+        const heading = document.createElement('h3');
+        heading.textContent = entry.name || 'Unnamed race';
+        const meta = document.createElement('p');
+        meta.textContent = [entry.date || 'No date', entry.division].filter(Boolean).join(' • ');
+        const pill = document.createElement('span');
+        pill.className = 'pill' + (entry.published ? '' : ' draft');
+        pill.textContent = entry.published ? 'Published' : 'Draft';
+        const results = document.createElement('pre');
+        results.textContent = entry.results || '';
+        const notes = document.createElement('p');
+        notes.textContent = entry.notes ? `Notes: ${entry.notes}` : '';
+        const actions = document.createElement('div');
+        actions.className = 'button-row';
+        const edit = document.createElement('button');
+        edit.className = 'outline';
+        edit.textContent = 'Edit';
+        edit.type = 'button';
+        edit.addEventListener('click', () => {
+          editingId = entry.id;
+          $('race-name').value = entry.name || '';
+          $('race-date').value = entry.date || '';
+          $('race-division').value = entry.division || '';
+          $('race-results').value = entry.results || '';
+          $('race-notes').value = entry.notes || '';
+          $('race-published').checked = entry.published === true;
+          $('edit-title').textContent = 'Edit Race Results';
+          saveButton.textContent = 'Save Changes';
+          $('cancel-edit').hidden = false;
+          $('race-name').focus();
+          setStatus('Editing selected race. Save Changes when finished.');
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'danger';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', async () => {
+          if (!confirm(`Permanently delete "${entry.name}" (${entry.date})?`)) return;
+          remove.disabled = true;
+          try {
+            await deleteDoc(doc(db, 'raceResults', entry.id));
+            if (editingId === entry.id) resetEditor();
+            setStatus('Race results deleted.');
+          } catch (error) {
+            setStatus(`Unable to delete: ${error.message}`, true);
+            remove.disabled = false;
+          }
+        });
+        actions.append(edit, remove);
+        card.append(heading, meta, pill, results);
+        if (entry.notes) card.append(notes);
+        card.append(actions);
+        list.append(card);
+      }
+    }
+
+    function startResultsListener() {
+      if (stopResults) stopResults();
+      $('results-loading').hidden = false;
+      stopResults = onSnapshot(collection(db, 'raceResults'), (snapshot) => {
+        currentResults = snapshot.docs.map((item) => ({ id:item.id, ...item.data() }));
+        currentResults.sort((a,b) => (b.date || '').localeCompare(a.date || '') || (a.name || '').localeCompare(b.name || ''));
+        $('results-loading').hidden = true;
+        displayResults();
+      }, (error) => {
+        $('results-loading').hidden = true;
+        setStatus(`Unable to load race results: ${error.message}`, true);
+      });
+    }
 
     onAuthStateChanged(auth, (user) => {
-      form.hidden = Boolean(user);
-      dashboard.hidden = !user || user.uid !== ADMIN_UID;
-      blocked.hidden = !user || user.uid === ADMIN_UID;
-      if (!user) {
-        setStatus('Please sign in to continue.');
-      } else if (user.uid === ADMIN_UID) {
-        document.getElementById('signed-in-email').textContent = user.email || 'WHYRA administrator';
+      const isAdmin = Boolean(user && user.uid === ADMIN_UID);
+      document.body.classList.toggle('admin-ready', isAdmin);
+      loginForm.hidden = Boolean(user);
+      dashboard.hidden = !isAdmin;
+      blocked.hidden = !user || isAdmin;
+      if (!isAdmin && stopResults) { stopResults(); stopResults = null; currentResults = []; resetEditor(); }
+      if (!user) setStatus('Please sign in to continue.');
+      else if (isAdmin) {
+        $('signed-in-email').textContent = user.email || 'WHYRA administrator';
         setStatus('Secure administrator session active.');
-      } else {
-        setStatus('This account does not have administrator permission.', true);
-      }
+        startResultsListener();
+      } else setStatus('This account does not have administrator permission.', true);
     }, () => {
-      form.hidden = false;
+      loginForm.hidden = false;
       dashboard.hidden = true;
       blocked.hidden = true;
       setStatus('Unable to connect to Authentication. Check Firebase configuration and authorized domains.', true);
     });
 
-    form.addEventListener('submit', async (event) => {
+    loginForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       loginButton.disabled = true;
       setStatus('Signing in…');
       try {
-        await signInWithEmailAndPassword(auth, document.getElementById('email').value.trim(), document.getElementById('password').value);
-        document.getElementById('password').value = '';
+        await signInWithEmailAndPassword(auth, $('email').value.trim(), $('password').value);
+        $('password').value = '';
       } catch (error) {
         const messages = {
           'auth/invalid-email': 'Enter a valid email address.',
           'auth/invalid-credential': 'Email or password is incorrect.',
           'auth/too-many-requests': 'Too many attempts. Please try again later.',
-          'auth/unauthorized-domain': 'This website domain must be added to Firebase authorized domains.',
+          'auth/unauthorized-domain': 'Add this website domain to Firebase authorized domains.',
           'auth/network-request-failed': 'Network connection failed. Please try again.'
         };
         setStatus(messages[error.code] || 'Sign-in failed. Please try again.', true);
-      } finally {
-        loginButton.disabled = false;
-      }
+      } finally { loginButton.disabled = false; }
     });
 
+    resultForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (saving || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return;
+      saving = true;
+      saveButton.disabled = true;
+      const payload = {
+        name: $('race-name').value.trim(),
+        date: $('race-date').value,
+        division: $('race-division').value.trim(),
+        results: $('race-results').value.trim(),
+        notes: $('race-notes').value.trim(),
+        published: $('race-published').checked,
+        updatedAt: serverTimestamp()
+      };
+      if (!payload.name || !payload.date || !payload.results) {
+        setStatus('Race name, date, and results are required.', true);
+        saving = false;
+        saveButton.disabled = false;
+        return;
+      }
+      try {
+        if (editingId) {
+          await updateDoc(doc(db, 'raceResults', editingId), payload);
+          setStatus('Race results updated successfully.');
+        } else {
+          await addDoc(collection(db, 'raceResults'), { ...payload, createdAt:serverTimestamp() });
+          setStatus(payload.published ? 'Race results published to Firestore.' : 'Race results saved as a draft.');
+        }
+        resetEditor();
+      } catch (error) {
+        setStatus(`Unable to save race results: ${error.message}`, true);
+      } finally { saving = false; saveButton.disabled = false; }
+    });
+
+    $('race-published').addEventListener('change', () => {
+      if (!editingId) saveButton.textContent = $('race-published').checked ? 'Publish Results' : 'Save Draft';
+    });
+    $('cancel-edit').addEventListener('click', () => { resetEditor(); setStatus('Editing cancelled.'); });
     async function handleSignOut(event) {
       event.currentTarget.disabled = true;
-      try {
-        await signOut(auth);
-      } catch {
-        setStatus('Unable to sign out. Please try again.', true);
-      } finally {
-        event.currentTarget.disabled = false;
-      }
+      try { await signOut(auth); }
+      catch { setStatus('Unable to sign out. Please try again.', true); }
+      finally { event.currentTarget.disabled = false; }
     }
-    document.getElementById('logout-button').addEventListener('click', handleSignOut);
-    document.getElementById('blocked-logout').addEventListener('click', handleSignOut);
-    document.getElementById('year').textContent = new Date().getFullYear();
+    $('logout-button').addEventListener('click', handleSignOut);
+    $('blocked-logout').addEventListener('click', handleSignOut);
+    $('year').textContent = new Date().getFullYear();
   </script>
 </body>
 </html>
