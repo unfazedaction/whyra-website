@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#103B60" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>WHYRA Administration | Sign In</title>
+  <style>
+    :root { --blue:#103B60; --red:#B5232F; --ice:#E6F0F5; --ink:#213344; --muted:#526779; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; flex-direction:column; color:var(--ink); background:var(--ice); font-family:Arial,Helvetica,sans-serif; }
+    header { background:var(--blue); color:#fff; border-bottom:5px solid var(--red); }
+    .header-inner { width:min(1040px,calc(100% - 32px)); margin:auto; min-height:94px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand { text-decoration:none; color:#fff; display:flex; align-items:center; gap:12px; }
+    .emblem { display:grid; place-items:center; width:48px; height:48px; border:2px solid white; border-radius:50%; font-size:25px; }
+    .brand strong { display:block; font-family:Georgia,'Times New Roman',serif; font-size:28px; letter-spacing:.06em; }
+    .brand small { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.05em; line-height:1.5; }
+    .back { color:#fff; font-weight:700; font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+    main { width:min(460px,calc(100% - 32px)); margin:60px auto; flex:1; }
+    .panel { background:#fff; border:1px solid #cbd9e4; border-top:5px solid var(--red); padding:32px; box-shadow:0 10px 28px rgba(16,59,96,.09); }
+    h1 { margin:0 0 12px; color:var(--blue); font-family:Georgia,'Times New Roman',serif; font-size:31px; }
+    p { line-height:1.55; }
+    .subtext { color:var(--muted); margin:0 0 28px; }
+    label { display:block; font-weight:700; margin:18px 0 7px; font-size:14px; }
+    input { display:block; width:100%; padding:13px; border:1px solid #a8bdcb; border-radius:3px; font:16px Arial,sans-serif; }
+    input:focus-visible, button:focus-visible, a:focus-visible { outline:3px solid #568eae; outline-offset:2px; }
+    button { display:block; width:100%; margin-top:25px; padding:14px; border:2px solid var(--red); background:var(--red); border-radius:3px; color:white; font:bold 14px Arial,sans-serif; cursor:pointer; }
+    button:hover:not(:disabled) { background:#921b25; border-color:#921b25; }
+    button:disabled { opacity:.65; cursor:wait; }
+    .outline { border-color:var(--blue); background:#fff; color:var(--blue); }
+    .outline:hover:not(:disabled) { background:var(--ice); border-color:var(--blue); }
+    .status { border-left:4px solid var(--blue); background:var(--ice); padding:12px 14px; margin-top:20px; font-size:14px; line-height:1.5; }
+    .status.error { border-left-color:var(--red); background:#fff1f2; }
+    .status:empty { display:none; }
+    .details { background:#f5f9fb; padding:16px; border:1px solid #d8e5ec; margin-top:20px; font-size:14px; overflow-wrap:anywhere; }
+    .details strong { color:var(--blue); }
+    [hidden] { display:none !important; }
+    footer { text-align:center; background:var(--blue); color:var(--ice); font-size:12px; padding:20px; }
+    @media(max-width:520px) { main { margin:32px auto; } .panel { padding:24px 20px; } .back { font-size:12px; } .brand strong { font-size:23px; } .brand small { max-width:165px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="./index.html" aria-label="WHYRA Home">
+        <span class="emblem" aria-hidden="true">⛵</span>
+        <span><strong>WHYRA</strong><small>Wilson Harbor Yacht Racing Association</small></span>
+      </a>
+      <a class="back" href="./index.html">← Public Website</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="page-title">
+      <h1 id="page-title">Administrator Sign In</h1>
+      <p class="subtext">Authorized WHYRA website administrator access only.</p>
+
+      <form id="login-form" hidden>
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" autocomplete="username" required />
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+        <button id="login-button" type="submit">Sign In</button>
+      </form>
+
+      <div id="dashboard" hidden>
+        <div class="details">
+          <strong>Administrator verified</strong>
+          <p>You are securely signed in as <span id="signed-in-email"></span>.</p>
+          <p>This confirms that Firebase Authentication recognizes the authorized WHYRA account. Race results and website management controls will be added in the next development steps.</p>
+        </div>
+        <button class="outline" id="logout-button" type="button">Sign Out</button>
+      </div>
+
+      <div id="blocked" hidden>
+        <p>This account is not authorized to manage WHYRA.org.</p>
+        <button class="outline" id="blocked-logout" type="button">Sign Out</button>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite">Connecting securely to Firebase…</p>
+    </section>
+  </main>
+  <footer>© <span id="year"></span> Wilson Harbor Yacht Racing Association</footer>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+    } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
+      authDomain: 'whyra-website.firebaseapp.com',
+      projectId: 'whyra-website',
+      storageBucket: 'whyra-website.firebasestorage.app',
+      messagingSenderId: '547669204835',
+      appId: '1:547669204835:web:9c8c2bdc633ae842687d56'
+    };
+    const ADMIN_UID = 'GrzNJ7HigKOEay5IipdEpbJ81zk2';
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const form = document.getElementById('login-form');
+    const dashboard = document.getElementById('dashboard');
+    const blocked = document.getElementById('blocked');
+    const status = document.getElementById('status');
+    const loginButton = document.getElementById('login-button');
+    const setStatus = (message, error = false) => {
+      status.textContent = message;
+      status.classList.toggle('error', error);
+      status.hidden = !message;
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      form.hidden = Boolean(user);
+      dashboard.hidden = !user || user.uid !== ADMIN_UID;
+      blocked.hidden = !user || user.uid === ADMIN_UID;
+      if (!user) {
+        setStatus('Please sign in to continue.');
+      } else if (user.uid === ADMIN_UID) {
+        document.getElementById('signed-in-email').textContent = user.email || 'WHYRA administrator';
+        setStatus('Secure administrator session active.');
+      } else {
+        setStatus('This account does not have administrator permission.', true);
+      }
+    }, () => {
+      form.hidden = false;
+      dashboard.hidden = true;
+      blocked.hidden = true;
+      setStatus('Unable to connect to Authentication. Check Firebase configuration and authorized domains.', true);
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      loginButton.disabled = true;
+      setStatus('Signing in…');
+      try {
+        await signInWithEmailAndPassword(auth, document.getElementById('email').value.trim(), document.getElementById('password').value);
+        document.getElementById('password').value = '';
+      } catch (error) {
+        const messages = {
+          'auth/invalid-email': 'Enter a valid email address.',
+          'auth/invalid-credential': 'Email or password is incorrect.',
+          'auth/too-many-requests': 'Too many attempts. Please try again later.',
+          'auth/unauthorized-domain': 'This website domain must be added to Firebase authorized domains.',
+          'auth/network-request-failed': 'Network connection failed. Please try again.'
+        };
+        setStatus(messages[error.code] || 'Sign-in failed. Please try again.', true);
+      } finally {
+        loginButton.disabled = false;
+      }
+    });
+
+    async function handleSignOut(event) {
+      event.currentTarget.disabled = true;
+      try {
+        await signOut(auth);
+      } catch {
+        setStatus('Unable to sign out. Please try again.', true);
+      } finally {
+        event.currentTarget.disabled = false;
+      }
+    }
+    document.getElementById('logout-button').addEventListener('click', handleSignOut);
+    document.getElementById('blocked-logout').addEventListener('click', handleSignOut);
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
