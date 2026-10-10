@@ -47,6 +47,12 @@
     .panel a { color: var(--red); font: 700 13px Arial, sans-serif; text-decoration: underline; }
     .notice { border-left: 4px solid var(--red); background: #fff; padding: 22px 26px; color: var(--muted); }
     .notice strong { display: block; color: var(--blue); margin-bottom: 5px; }
+    .race-card { border: 1px solid var(--line); border-top: 4px solid var(--red); background: #fff; padding: 24px; margin: 18px 0; }
+    .race-card h3 { color: var(--blue); margin: 0 0 5px; font-size: 25px; }
+    .race-meta { font: 600 13px Arial, sans-serif; color: var(--muted); margin-bottom: 16px; }
+    .race-finishes { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.7 Arial, sans-serif; margin: 0; }
+    .race-notes { margin: 17px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 15px; }
+    .results-feedback { font: 15px/1.6 Arial, sans-serif; color: var(--muted); }
     .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 50px; align-items: start; }
     .info-list { margin: 0; padding-left: 20px; }
     .info-list li { margin-bottom: 9px; }
@@ -100,7 +106,12 @@
       <div class="container"><h2 class="section-heading" id="schedule-title">Race Schedule</h2><p class="intro">The racing calendar will be published here when the schedule management system is connected.</p><div class="notice"><strong>Schedule coming soon</strong>Official race dates and details will appear here once added by the WHYRA administrator.</div></div>
     </section>
     <section id="results" aria-labelledby="results-title">
-      <div class="container"><h2 class="section-heading" id="results-title">Race Results</h2><p class="intro">See race results and season standings as they are posted.</p><div class="notice"><strong>Results coming soon</strong>The protected administrator dashboard will allow WHYRA to upload and publish results. Public visitors will be able to view them here without logging in.</div></div>
+      <div class="container">
+        <h2 class="section-heading" id="results-title">Race Results</h2>
+        <p class="intro">Official WHYRA racing results, published by the race administrator. Updates appear here automatically.</p>
+        <p class="results-feedback" id="results-feedback" role="status" aria-live="polite">Loading published race results…</p>
+        <div id="public-race-results" aria-live="polite"></div>
+      </div>
     </section>
     <section class="tint" id="about" aria-labelledby="about-title">
       <div class="container two-col"><div><h2 class="section-heading" id="about-title">About WHYRA</h2><p>The Wilson Harbor Yacht Racing Association brings together sailors in the Wilson Harbor and Lake Ontario community. This site will serve as a central resource for racing news, schedules, and results.</p><p>We will add the association's official history and club information as that content becomes available.</p></div><div class="panel"><h3>On the Water</h3><ul class="info-list"><li>Wilson Harbor, New York</li><li>Lake Ontario sailboat racing</li><li>Racing schedules and results</li><li>A community of sailors</li></ul></div></div>
@@ -121,6 +132,63 @@
       toggle.setAttribute('aria-expanded', 'false');
     }));
     document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+    import { getFirestore, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
+      authDomain: 'whyra-website.firebaseapp.com',
+      projectId: 'whyra-website',
+      storageBucket: 'whyra-website.firebasestorage.app',
+      messagingSenderId: '547669204835',
+      appId: '1:547669204835:web:9c8c2bdc633ae842687d56'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const resultsContainer = document.getElementById('public-race-results');
+    const feedback = document.getElementById('results-feedback');
+    const publishedResults = query(collection(db, 'raceResults'), where('published', '==', true));
+
+    // Querying only published documents also satisfies Firestore's public-read security rules.
+    onSnapshot(publishedResults, (snapshot) => {
+      const races = snapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+      races.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (a.name || '').localeCompare(b.name || ''));
+      resultsContainer.replaceChildren();
+      if (!races.length) {
+        feedback.textContent = 'No race results have been published yet. Please check back soon.';
+        return;
+      }
+      feedback.textContent = '';
+      for (const race of races) {
+        const card = document.createElement('article');
+        card.className = 'race-card';
+        const title = document.createElement('h3');
+        title.textContent = race.name || 'Unnamed race';
+        const meta = document.createElement('p');
+        meta.className = 'race-meta';
+        const readableDate = /^\d{4}-\d{2}-\d{2}$/.test(race.date || '')
+          ? new Date(`${race.date}T12:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+          : (race.date || 'Date not provided');
+        meta.textContent = [readableDate, race.division].filter(Boolean).join(' • ');
+        const finishes = document.createElement('pre');
+        finishes.className = 'race-finishes';
+        finishes.textContent = race.results || 'No finishing details provided.';
+        card.append(title, meta, finishes);
+        if (race.notes) {
+          const notes = document.createElement('p');
+          notes.className = 'race-notes';
+          notes.textContent = `Notes: ${race.notes}`;
+          card.append(notes);
+        }
+        resultsContainer.append(card);
+      }
+    }, (error) => {
+      feedback.textContent = 'Race results are temporarily unavailable. Please try again later.';
+      console.error('WHYRA race results loading failed:', error);
+    });
   </script>
 </body>
 </html>
