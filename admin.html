@@ -27,9 +27,9 @@
     .subtext { color:var(--muted); margin:0 0 22px; }
     .section { border-top:1px solid #d8e5ec; padding-top:24px; margin-top:26px; }
     label { display:block; font-weight:700; margin:16px 0 7px; font-size:14px; }
-    input,textarea { display:block; width:100%; padding:12px; border:1px solid #a8bdcb; border-radius:3px; background:#fff; color:var(--ink); font:16px Arial,sans-serif; }
+    input,textarea,select { display:block; width:100%; padding:12px; border:1px solid #a8bdcb; border-radius:3px; background:#fff; color:var(--ink); font:16px Arial,sans-serif; }
     textarea { min-height:150px; resize:vertical; line-height:1.55; }
-    input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid #568eae; outline-offset:2px; }
+    input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid #568eae; outline-offset:2px; }
     button { display:inline-block; padding:12px 16px; border:2px solid var(--red); background:var(--red); border-radius:3px; color:white; font:bold 14px Arial,sans-serif; cursor:pointer; }
     button:hover:not(:disabled) { background:#921b25; border-color:#921b25; }
     button:disabled { opacity:.65; cursor:wait; }
@@ -94,6 +94,14 @@
             <h2 id="edit-title">Publish Race Results</h2>
             <p class="hint">Enter the race information and results. Save as a draft or publish immediately to Firestore.</p>
             <form id="result-form">
+              <label for="race-series">Racing series</label>
+              <select id="race-series" required>
+                <option value="">Select a racing series</option>
+                <option value="brian-murray">Series 1 — Brian Murray</option>
+                <option value="dave-segal">Series 2 — Dave Segal</option>
+                <option value="low-water">Series 3 — Low Water</option>
+              </select>
+              <p class="hint">The racing season is determined by the race date. Older results can be assigned to a series by editing them.</p>
               <label for="race-name">Race name</label>
               <input id="race-name" type="text" maxlength="120" placeholder="Wednesday Night Series — Race 1" required />
               <div class="field-row">
@@ -121,7 +129,23 @@
           </section>
           <section aria-labelledby="saved-title">
             <h2 id="saved-title">Saved Race Results</h2>
-            <p class="hint">Select Edit to load a race into the form. Delete permanently removes that race.</p>
+            <p class="hint">Filter results by series and season, or edit older races to assign them to a series. Delete permanently removes that race.</p>
+            <div class="field-row">
+              <div>
+                <label for="filter-series">Filter series</label>
+                <select id="filter-series">
+                  <option value="all">All series</option>
+                  <option value="brian-murray">Series 1 — Brian Murray</option>
+                  <option value="dave-segal">Series 2 — Dave Segal</option>
+                  <option value="low-water">Series 3 — Low Water</option>
+                  <option value="unassigned">Unassigned (older results)</option>
+                </select>
+              </div>
+              <div>
+                <label for="filter-season">Filter year</label>
+                <select id="filter-season"><option value="all">All years</option></select>
+              </div>
+            </div>
             <p id="results-loading" class="hint">Loading race results…</p>
             <div id="results-list" aria-live="polite"></div>
           </section>
@@ -165,6 +189,14 @@
     let currentResults = [];
     let editingId = null;
     let saving = false;
+    const SERIES = {
+      'brian-murray': 'Series 1 — Brian Murray',
+      'dave-segal': 'Series 2 — Dave Segal',
+      'low-water': 'Series 3 — Low Water'
+    };
+    const seriesName = (key) => SERIES[key] || 'Unassigned (older result)';
+    const raceYear = (entry) => /^\\d{4}-/.test(entry.date || '') ? entry.date.slice(0, 4) : 'Unknown';
+
 
     function setStatus(message, error = false) {
       $('status').textContent = message;
@@ -176,28 +208,48 @@
       editingId = null;
       resultForm.reset();
       $('race-published').checked = true;
+      $('race-series').value = '';
       $('edit-title').textContent = 'Publish Race Results';
       saveButton.textContent = 'Publish Results';
       $('cancel-edit').hidden = true;
     }
 
+    function updateYearFilter() {
+      const control = $('filter-season');
+      const chosen = control.value;
+      const years = [...new Set(currentResults.map(raceYear))].sort((a, b) => b.localeCompare(a));
+      control.replaceChildren(new Option('All years', 'all'));
+      years.forEach(year => control.add(new Option(year, year)));
+      control.value = years.includes(chosen) ? chosen : 'all';
+    }
+
     function displayResults() {
       const list = $('results-list');
       list.replaceChildren();
-      if (currentResults.length === 0) {
+      const selectedSeries = $('filter-series').value;
+      const selectedYear = $('filter-season').value;
+      const filteredResults = currentResults.filter(entry =>
+        (selectedSeries === 'all' || (selectedSeries === 'unassigned'
+          ? !SERIES[entry.series]
+          : entry.series === selectedSeries)) &&
+        (selectedYear === 'all' || raceYear(entry) === selectedYear)
+      );
+      if (filteredResults.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'hint';
-        empty.textContent = 'No race results saved yet.';
+        empty.textContent = currentResults.length
+          ? 'No races match these filters.'
+          : 'No race results saved yet.';
         list.append(empty);
         return;
       }
-      for (const entry of currentResults) {
+      for (const entry of filteredResults) {
         const card = document.createElement('article');
         card.className = 'result-card';
         const heading = document.createElement('h3');
         heading.textContent = entry.name || 'Unnamed race';
         const meta = document.createElement('p');
-        meta.textContent = [entry.date || 'No date', entry.division].filter(Boolean).join(' • ');
+        meta.textContent = [seriesName(entry.series), raceYear(entry), entry.date || 'No date', entry.division].filter(Boolean).join(' • ');
         const pill = document.createElement('span');
         pill.className = 'pill' + (entry.published ? '' : ' draft');
         pill.textContent = entry.published ? 'Published' : 'Draft';
@@ -213,6 +265,7 @@
         edit.type = 'button';
         edit.addEventListener('click', () => {
           editingId = entry.id;
+          $('race-series').value = SERIES[entry.series] ? entry.series : '';
           $('race-name').value = entry.name || '';
           $('race-date').value = entry.date || '';
           $('race-division').value = entry.division || '';
@@ -256,6 +309,7 @@
         currentResults = snapshot.docs.map((item) => ({ id:item.id, ...item.data() }));
         currentResults.sort((a,b) => (b.date || '').localeCompare(a.date || '') || (a.name || '').localeCompare(b.name || ''));
         $('results-loading').hidden = true;
+        updateYearFilter();
         displayResults();
       }, (error) => {
         $('results-loading').hidden = true;
@@ -308,6 +362,8 @@
       saving = true;
       saveButton.disabled = true;
       const payload = {
+        series: $('race-series').value,
+        season: $('race-date').value.slice(0, 4),
         name: $('race-name').value.trim(),
         date: $('race-date').value,
         division: $('race-division').value.trim(),
@@ -316,8 +372,8 @@
         published: $('race-published').checked,
         updatedAt: serverTimestamp()
       };
-      if (!payload.name || !payload.date || !payload.results) {
-        setStatus('Race name, date, and results are required.', true);
+      if (!SERIES[payload.series] || !payload.name || !payload.date || !payload.results) {
+        setStatus('Select a racing series and enter the race name, date, and results.', true);
         saving = false;
         saveButton.disabled = false;
         return;
@@ -336,6 +392,8 @@
       } finally { saving = false; saveButton.disabled = false; }
     });
 
+    $('filter-series').addEventListener('change', displayResults);
+    $('filter-season').addEventListener('change', displayResults);
     $('race-published').addEventListener('change', () => {
       if (!editingId) saveButton.textContent = $('race-published').checked ? 'Publish Results' : 'Save Draft';
     });
