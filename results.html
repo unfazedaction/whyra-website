@@ -38,6 +38,15 @@
     select { width:100%; min-height:44px; padding:9px 12px; border:1px solid #9cb6c9; border-radius:3px; color:var(--ink); background:#fff; font:15px Arial,sans-serif; }
     .summary { color:var(--muted); font:14px Arial,sans-serif; margin:22px 0 16px; }
     .race-list { display:grid; gap:18px; }
+    .series-heading { color:var(--blue);font-size:23px;margin:0 0 12px; }
+    .series-group { border:1px solid var(--line);border-top:4px solid var(--red);padding:20px;background:white; }
+    .series-group.empty { background:#f7fafc; border-top-color:var(--line); }
+    .series-intro { font:13px Arial,sans-serif;color:var(--muted);margin:0 0 12px; }
+    .series-details { margin-top:12px; }
+    .series-details>summary { cursor:pointer;color:var(--blue);font:700 14px Arial,sans-serif;padding:12px;background:var(--ice); }
+    .series-details[open]>summary { margin-bottom:14px; }
+    .series-frame { width:100%;height:770px; border:1px solid #cbd9e4;background:#fff; }
+    .legacy-heading { font-size:17px;color:var(--blue);margin:16px 0 10px; }
     .race-card { border:1px solid var(--line); border-top:4px solid var(--red); padding:23px; background:#fff; }
     .race-card h2 { color:var(--blue); margin:0 0 5px; font-size:25px; }
     .race-meta { margin:0 0 15px; color:var(--muted); font:600 13px/1.6 Arial,sans-serif; }
@@ -91,7 +100,7 @@
       <div class="container">
         <p class="eyebrow">Wilson Harbor Yacht Racing Association</p>
         <h1>Race Results</h1>
-        <p>Browse published results by racing series and season. Official Sailwave results integration is planned for a future update.</p>
+        <p>Browse published results by racing series and season. View official Sailwave standings and individual race tables published by WHYRA.</p>
       </div>
     </section>
     <section class="container content" aria-label="Published race results">
@@ -167,7 +176,32 @@
       const years = [...new Set(races.map(seasonOf))].sort((a, b) => b.localeCompare(a));
       yearFilter.replaceChildren(new Option('All seasons', 'all'));
       for (const year of years) yearFilter.add(new Option(year, year));
-      yearFilter.value = years.includes(previous) ? previous : 'all';
+      yearFilter.value = years.includes(previous) ? previous : (years[0] || 'all');
+    }
+
+    function makeSailwaveFrame(html) {
+      const frame = document.createElement('iframe');
+      frame.title = 'Official Sailwave race results and standings';
+      frame.loading = 'lazy';
+      frame.className = 'series-frame';
+      // No allow-scripts or allow-same-origin: isolates HTML from WHYRA and Firebase.
+      frame.setAttribute('sandbox', '');
+      const css = `body{font:14px Arial,sans-serif;color:#213344;margin:18px}
+        h3{color:#103B60;margin:25px 0 9px}div{line-height:1.5}
+        table{border-collapse:collapse;width:100%;margin:14px 0 30px;font-size:13px}
+        th,td{border:1px solid #cbd9e4;padding:7px;text-align:left;white-space:nowrap}
+        th{background:#103B60;color:white}tbody tr:nth-child(even){background:#e6f0f5}
+        a{color:#B5232F} .scroll{overflow-x:auto}`;
+      // Only the whitelist-sanitized HTML saved by our uploader is used here.
+      frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>${css}</style></head><body><div class="scroll">${html}</div></body></html>`;
+      return frame;
+    }
+
+    const ORDER = ['brian-murray','dave-segal','low-water'];
+    function makeHeading(text, tag='h2') {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      return el;
     }
     function render() {
       const chosenSeries = seriesFilter.value;
@@ -179,30 +213,65 @@
         (chosenYear === 'all' || seasonOf(race) === chosenYear)
       );
       list.replaceChildren();
-      if (!visible.length) {
-        summary.textContent = races.length ? 'No published races match these filters.' : 'No race results have been published yet.';
+      if (!visible.length && !races.length) {
+        summary.textContent = 'No race results have been published yet.';
         return;
       }
-      summary.textContent = `${visible.length} published ${visible.length === 1 ? 'race' : 'races'} shown`;
-      for (const race of visible) {
-        const card = document.createElement('article');
-        card.className = 'race-card';
-        const title = document.createElement('h2');
-        title.textContent = race.name || 'Unnamed race';
-        const meta = document.createElement('p');
-        meta.className = 'race-meta';
-        meta.textContent = [seriesNames[race.series] || 'Unassigned series', dateLabel(race.date), race.division].filter(Boolean).join(' • ');
-        const finishes = document.createElement('pre');
-        finishes.className = 'race-finishes';
-        finishes.textContent = race.results || 'No finishing details provided.';
-        card.append(title, meta, finishes);
-        if (race.notes) {
-          const notes = document.createElement('p');
-          notes.className = 'race-notes';
-          notes.textContent = `Notes: ${race.notes}`;
-          card.append(notes);
+      const yearsLabel = chosenYear === 'all' ? 'All seasons' : `${chosenYear} season`;
+      summary.textContent = `${yearsLabel} • ${visible.filter(r=>r.type==='sailwave').length} published Sailwave series`;
+      for (const series of (chosenSeries === 'unassigned' ? ['unassigned'] :
+          chosenSeries === 'all' ? ORDER : [chosenSeries])) {
+        const entries = visible.filter(r => series === 'unassigned' ? !seriesNames[r.series] : r.series === series);
+        const sailwave = entries.filter(r => r.type === 'sailwave' && typeof r.sailwaveHtml === 'string')
+          .sort((a,b)=>seasonOf(b).localeCompare(seasonOf(a)));
+        const legacy = entries.filter(r=>r.type !== 'sailwave');
+        const group = document.createElement('section');
+        group.className = 'series-group' + (entries.length ? '' : ' empty');
+        group.append(makeHeading(seriesNames[series] || 'Older Unassigned Results', 'h2'));
+        if (!entries.length) {
+          const notice=document.createElement('p');
+          notice.className='series-intro';
+          notice.textContent='No results published for this series and season yet.';
+          group.append(notice);
         }
-        list.append(card);
+        for (const race of sailwave) {
+          const details=document.createElement('details');
+          details.className='series-details';
+          // One open full-series viewer at a time when a single series is selected.
+          details.open = chosenSeries === series && sailwave.length === 1;
+          const toggle=document.createElement('summary');
+          toggle.textContent = `${seasonOf(race)} — View full series standings and individual race results`;
+          details.append(toggle);
+          const help=document.createElement('p');
+          help.className='series-intro';
+          help.textContent='Official Sailwave results • Overall fleet standings first, followed by individual race tables.';
+          details.append(help,makeSailwaveFrame(race.sailwaveHtml));
+          group.append(details);
+        }
+        if (legacy.length) {
+          group.append(makeHeading('Other Published Race Results', 'h3'));
+          legacy.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+          for (const race of legacy) {
+            const card = document.createElement('article');
+            card.className = 'race-card';
+            const title = makeHeading(race.name || 'Unnamed race','h2');
+            const meta=document.createElement('p');
+            meta.className='race-meta';
+            meta.textContent=[dateLabel(race.date),race.division].filter(Boolean).join(' • ');
+            const finishes=document.createElement('pre');
+            finishes.className='race-finishes';
+            finishes.textContent=race.results||'No finishing details provided.';
+            card.append(title,meta,finishes);
+            if (race.notes) {
+              const notes=document.createElement('p');
+              notes.className='race-notes';
+              notes.textContent=`Notes: ${race.notes}`;
+              card.append(notes);
+            }
+            group.append(card);
+          }
+        }
+        list.append(group);
       }
     }
     seriesFilter.addEventListener('change', render);
