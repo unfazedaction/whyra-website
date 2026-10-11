@@ -52,11 +52,9 @@
     .hero-art::after { content:""; position:absolute; bottom:0; right:-100vw; width:150vw; height:2px; background:rgba(255,255,255,.17); }
 
     .welcome { padding:27px 0; background:var(--ice); border-bottom:1px solid #D0E1EC; }
-    .welcome-inner { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:28px; }
+    .welcome-inner { max-width:1120px; }
     .welcome h2 { font-size:25px; line-height:1.2; color:var(--blue); margin:0 0 7px; }
     .welcome p { color:#465E70; margin:0; font-size:14px; }
-    .series { display:flex; gap:7px; flex-wrap:wrap; }
-    .series span { background:#fff; color:var(--blue); border:1px solid #BED2DE; border-left:3px solid var(--red); padding:9px 12px; font-size:12px; font-weight:700; }
     .club-info { padding:28px 0 30px; }
     .info-inner { display:grid; grid-template-columns:1fr 1fr; gap:35px; }
     .info-inner > div+div { border-left:1px solid var(--line); padding-left:35px; }
@@ -80,7 +78,6 @@
       .hero-copy { padding:44px 0 8px; }
       .hero-art { justify-content:center; max-height:160px; overflow:hidden; }
       .hero-art svg { width:280px; transform:translateY(24px); }
-      .welcome-inner { grid-template-columns:1fr; gap:17px; }
       .info-inner { gap:18px; }
       .info-inner > div+div { padding-left:18px; }
     }
@@ -152,11 +149,6 @@
         <div>
           <h2 id="welcome-title">Welcome to WHYRA</h2>
           <p>Follow the summer racing season through our three established series.</p>
-        </div>
-        <div class="series" aria-label="WHYRA racing series">
-          <span>Brian Murray</span>
-          <span>Dave Segal</span>
-          <span>Low Water</span>
         </div>
       </div>
     </section>
