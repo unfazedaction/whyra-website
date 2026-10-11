@@ -92,6 +92,32 @@
           <p style="margin-bottom:0">Signed in as <span id="signed-in-email"></span>.</p>
         </div>
         <div class="button-row"><button class="outline" id="logout-button" type="button">Sign Out</button></div>
+        <div class="section" aria-labelledby="sailwave-heading">
+          <h2 id="sailwave-heading">Publish Sailwave Results</h2>
+          <p class="subtext">Save the results as an HTML file in Sailwave, then select the file here. Each file contains the entire series: standings and all completed races. Uploading a new file replaces that series' prior results for the same season.</p>
+          <form id="sailwave-form">
+            <label for="sailwave-file">Sailwave HTML results file</label>
+            <input id="sailwave-file" type="file" accept=".htm,.html,text/html" required />
+            <div class="field-row">
+              <div>
+                <label for="sailwave-series">Racing series</label>
+                <select id="sailwave-series" required>
+                  <option value="">Choose a series</option>
+                  <option value="brian-murray">Brian Murray (BCM)</option>
+                  <option value="dave-segal">Dave Segal (DS)</option>
+                  <option value="low-water">Low Water</option>
+                </select>
+              </div>
+              <div>
+                <label for="sailwave-season">Season</label>
+                <input id="sailwave-season" type="number" min="2000" max="2100" step="1" required />
+              </div>
+            </div>
+            <p id="sailwave-detection" class="hint" aria-live="polite">The racing series and season will be suggested from the selected file where possible.</p>
+            <div class="button-row"><button id="sailwave-publish" type="submit">Publish Sailwave Results</button></div>
+            <p id="sailwave-status" class="hint" role="status" aria-live="polite"></p>
+          </form>
+        </div>
         <div class="section layout">
           <section aria-labelledby="edit-title">
             <h2 id="edit-title">Publish Race Results</h2>
@@ -464,6 +490,12 @@
         edit.type = 'button';
         edit.className = 'outline';
         edit.textContent = 'Edit Season Schedule';
+        edit.disabled = entry.type === 'sailwave';
+        edit.title = edit.disabled ? 'Re-upload the Sailwave HTML file to replace these results.' : '';
+        if (entry.type === 'sailwave') {
+          edit.disabled = true;
+          edit.title = 'To update these series standings, upload a new Sailwave HTML file above.';
+        }
         edit.addEventListener('click', () => {
           $('schedule-year').value = year;
           $('schedule-start').value = first?.date || '';
@@ -536,7 +568,7 @@
         pill.className = 'pill' + (entry.published ? '' : ' draft');
         pill.textContent = entry.published ? 'Published' : 'Draft';
         const results = document.createElement('pre');
-        results.textContent = entry.results || '';
+        results.textContent = entry.type === 'sailwave' ? 'Official Sailwave standings and individual race tables. Upload the revised HTML file to update.' : (entry.results || '');
         const notes = document.createElement('p');
         notes.textContent = entry.notes ? `Notes: ${entry.notes}` : '';
         const actions = document.createElement('div');
@@ -786,6 +818,113 @@
       if (!editingId) saveButton.textContent = $('race-published').checked ? 'Publish Results' : 'Save Draft';
     });
     $('cancel-edit').addEventListener('click', () => { resetEditor(); setStatus('Editing cancelled.'); });
+
+    // Rebuild Sailwave's tabular content using only supported, inert HTML tags.
+    // Never store or display raw browser scripts, event handlers, styles or external URLs.
+    const SAILWAVE_TAGS = new Set(['H1','H2','H3','H4','P','DIV','TABLE','THEAD','TBODY','TFOOT',
+      'TR','TH','TD','COLGROUP','COL','BR','STRONG','B','EM','I','SPAN','A']);
+    function cleanSailwave(source) {
+      const parsed = new DOMParser().parseFromString(source, 'text/html');
+      if (!parsed.querySelector('table.summarytable, table.racetable')) {
+        throw new Error('This file does not look like a Sailwave results export.');
+      }
+      const target = document.createElement('div');
+      function copy(node, parent) {
+        if (node.nodeType === Node.TEXT_NODE) { parent.append(document.createTextNode(node.textContent)); return; }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        if (!SAILWAVE_TAGS.has(node.tagName)) return;
+        const element = document.createElement(node.tagName.toLowerCase());
+        if (node.id && /^[a-zA-Z][\w-]{0,90}$/.test(node.id)) element.id = node.id;
+        if (node.tagName === 'A') {
+          const rawHref = node.getAttribute('href') || '';
+          const match = rawHref.match(/#([a-zA-Z][\w-]{0,90})$/);
+          if (match) element.setAttribute('href', `#${match[1]}`);
+        }
+        if (node.tagName === 'TH' || node.tagName === 'TD') {
+          for (const attr of ['colspan','rowspan']) {
+            const value = Number(node.getAttribute(attr));
+            if (Number.isInteger(value) && value >= 1 && value <= 30) element.setAttribute(attr,String(value));
+          }
+        }
+        for (const child of node.childNodes) copy(child, element);
+        parent.append(element);
+      }
+      // Avoid bringing the source document's <head>, scripts, or external assets.
+      for (const node of parsed.body.childNodes) copy(node, target);
+      const markup = target.innerHTML;
+      if (markup.length > 800000) throw new Error('Results are too large for this upload method.');
+      return markup;
+    }
+    function detectSailwaveSeries(source) {
+      const plain = new DOMParser().parseFromString(source, 'text/html').body.textContent || '';
+      const first = plain.slice(0, 4500);
+      if (/\bBCM(?:\s+Series)?\b/i.test(first)) return 'brian-murray';
+      if (/\bDS(?:\s+Series)?\b/i.test(first)) return 'dave-segal';
+      if (/Low Water/i.test(first)) return 'low-water';
+      return '';
+    }
+    function detectSailwaveYear(source) {
+      const matches = [...source.matchAll(/\b(?:20\d{2})\b/g)].map(m => Number(m[0]));
+      const plausible = matches.filter(y => y >= 2000 && y <= 2100);
+      if (!plausible.length) return new Date().getFullYear();
+      const counts = new Map();
+      plausible.forEach(y => counts.set(y,(counts.get(y)||0)+1));
+      return [...counts].sort((a,b) => b[1]-a[1])[0][0];
+    }
+    $('sailwave-file').addEventListener('change', async () => {
+      const file = $('sailwave-file').files[0];
+      $('sailwave-detection').textContent = 'Inspecting results file…';
+      if (!file) return;
+      if (!/\.html?$/i.test(file.name) || file.size > 500000) {
+        $('sailwave-detection').textContent = 'Choose an HTML file (.htm or .html) smaller than 500 KB.';
+        return;
+      }
+      try {
+        const source = await file.text();
+        cleanSailwave(source);
+        const series = detectSailwaveSeries(source);
+        if (series) $('sailwave-series').value = series;
+        $('sailwave-season').value = String(detectSailwaveYear(source));
+        $('sailwave-detection').textContent = series
+          ? `Suggested: ${SERIES[series]}. Verify the series and season before publishing.`
+          : 'File recognized. Select the racing series and verify the season.';
+      } catch (error) { $('sailwave-detection').textContent = error.message; }
+    });
+    $('sailwave-season').value = String(new Date().getFullYear());
+    $('sailwave-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const user = auth.currentUser;
+      if (!user || user.uid !== ADMIN_UID) return;
+      const file = $('sailwave-file').files[0];
+      const series = $('sailwave-series').value;
+      const year = Number($('sailwave-season').value);
+      const status = $('sailwave-status');
+      if (!file || !/\.html?$/i.test(file.name) || file.size > 500000 || !SERIES[series] ||
+          !Number.isInteger(year) || year < 2000 || year > 2100) {
+        status.textContent = 'Choose a valid Sailwave HTML file, racing series, and season.';
+        return;
+      }
+      const button = $('sailwave-publish');
+      button.disabled = true;
+      status.textContent = 'Publishing Sailwave results…';
+      try {
+        const source = await file.text();
+        const html = cleanSailwave(source);
+        const confirmed = confirm(`Publish ${SERIES[series]} for ${year}? This replaces any previous Sailwave upload for this series and season.`);
+        if (!confirmed) { status.textContent = 'Publication cancelled.'; return; }
+        // Stable document ID makes repeat uploads replace the previous season standings.
+        await setDoc(doc(db, 'raceResults', `sailwave-${year}-${series}`), {
+          type:'sailwave', series, season:String(year), name:`${SERIES[series]} — ${year} Sailwave Results`,
+          date:`${year}-01-01`, division:'All fleets', results:'',
+          sailwaveHtml:html, published:true, updatedAt:serverTimestamp()
+        }, { merge:true });
+        status.textContent = 'Published successfully! Open the public Results page to view the standings.';
+        $('sailwave-file').value = '';
+      } catch (error) {
+        status.textContent = `Unable to publish: ${error.message}`;
+      } finally { button.disabled = false; }
+    });
+
     async function handleSignOut(event) {
       event.currentTarget.disabled = true;
       try { await signOut(auth); }
