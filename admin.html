@@ -189,6 +189,30 @@
             </section>
           </div>
         </div>
+        <div class="section" aria-labelledby="contact-edit-title">
+          <h2 id="contact-edit-title">Contact Page Information</h2>
+          <p class="subtext">Update the public Contact WHYRA page without changing website code. Only the authorized administrator can save changes.</p>
+          <form id="contact-editor" class="layout">
+            <div>
+              <label for="contact-intro">Introduction</label>
+              <textarea id="contact-intro" maxlength="2000" style="min-height:105px" required>WHYRA brings together sailors in Wilson Harbor and the Lake Ontario community.</textarea>
+              <label for="contact-email">Public email address (optional)</label>
+              <input id="contact-email" type="email" maxlength="254" placeholder="club@example.org" />
+              <label for="contact-phone">Public phone number (optional)</label>
+              <input id="contact-phone" type="tel" maxlength="60" placeholder="Phone number" />
+            </div>
+            <div>
+              <label for="contact-message">Additional contact instructions (optional)</label>
+              <textarea id="contact-message" maxlength="2000" style="min-height:105px" placeholder="Who to contact for racing questions, membership information, etc."></textarea>
+              <label for="contact-location">Where We Race heading / location</label>
+              <input id="contact-location" type="text" maxlength="160" value="Wilson Harbor, New York" required />
+              <label for="contact-water">Waterway / secondary location</label>
+              <input id="contact-water" type="text" maxlength="160" value="Lake Ontario" />
+              <div class="button-row"><button id="contact-save" type="submit">Publish Contact Details</button></div>
+              <p class="hint" id="contact-editor-status" role="status" aria-live="polite">Contact page settings load after sign-in.</p>
+            </div>
+          </form>
+        </div>
       </div>
 
       <div id="blocked" hidden>
@@ -203,7 +227,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
@@ -575,12 +599,62 @@
       });
     }
 
+    const contactDocRef = doc(db, 'sitePages', 'contact');
+    let contactRequestToken = 0;
+    async function loadContactEditor() {
+      const token = ++contactRequestToken;
+      $('contact-editor-status').textContent = 'Loading contact information…';
+      try {
+        const snapshot = await getDoc(contactDocRef);
+        if (token !== contactRequestToken || auth.currentUser?.uid !== ADMIN_UID) return;
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          $('contact-intro').value = data.intro || '';
+          $('contact-email').value = data.email || '';
+          $('contact-phone').value = data.phone || '';
+          $('contact-message').value = data.message || '';
+          $('contact-location').value = data.location || 'Wilson Harbor, New York';
+          $('contact-water').value = data.waterway || 'Lake Ontario';
+          $('contact-editor-status').textContent = 'Published contact information loaded.';
+        } else {
+          $('contact-editor-status').textContent = 'No contact details published yet. Fill out the form and publish.';
+        }
+      } catch (error) {
+        if (token === contactRequestToken) $('contact-editor-status').textContent = `Unable to load contact information: ${error.message}`;
+      }
+    }
+    $('contact-editor').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (auth.currentUser?.uid !== ADMIN_UID) return;
+      const save = $('contact-save');
+      save.disabled = true;
+      $('contact-editor-status').textContent = 'Publishing contact information…';
+      try {
+        await setDoc(contactDocRef, {
+          intro: $('contact-intro').value.trim(),
+          email: $('contact-email').value.trim(),
+          phone: $('contact-phone').value.trim(),
+          message: $('contact-message').value.trim(),
+          location: $('contact-location').value.trim(),
+          waterway: $('contact-water').value.trim(),
+          published: true,
+          updatedAt: serverTimestamp()
+        });
+        $('contact-editor-status').textContent = 'Contact information published successfully. Refresh the public Contact page to verify.';
+      } catch (error) {
+        $('contact-editor-status').textContent = `Unable to publish contact information: ${error.message}`;
+      } finally {
+        save.disabled = false;
+      }
+    });
+
     onAuthStateChanged(auth, (user) => {
       const isAdmin = Boolean(user && user.uid === ADMIN_UID);
       document.body.classList.toggle('admin-ready', isAdmin);
       loginForm.hidden = Boolean(user);
       dashboard.hidden = !isAdmin;
       blocked.hidden = !user || isAdmin;
+      if (!isAdmin) contactRequestToken++;
       if (!isAdmin && stopResults) { stopResults(); stopResults = null; currentResults = []; resetEditor(); }
       if (!isAdmin && stopSchedule) { stopSchedule(); stopSchedule = null; scheduledRaces = []; invalidatePreview(); }
       if (!user) setStatus('Please sign in to continue.');
@@ -589,6 +663,7 @@
         setStatus('Secure administrator session active.');
         startResultsListener();
         startScheduleListener();
+        loadContactEditor();
       } else setStatus('This account does not have administrator permission.', true);
     }, () => {
       loginForm.hidden = false;
