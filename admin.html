@@ -352,7 +352,9 @@
           date.setAttribute('aria-label', `${name}, race ${entry.raceNumber} date`);
           date.addEventListener('change', () => {
             entry.date = date.value;
-            $('schedule-save').disabled = !scheduleIsValid(false);
+            const valid = scheduleIsValid(false);
+            $('schedule-save').disabled = !valid;
+            setStatus(valid ? 'Schedule is ready to publish.' : 'Check race dates: each must be unique and in chronological order.', !valid);
           });
           const timeGroup = document.createElement('div');
           const timeLabel = document.createElement('label');
@@ -360,7 +362,12 @@
           const time = document.createElement('input');
           time.type = 'time';
           time.value = entry.time || '19:00';
-          time.addEventListener('change', () => {entry.time = time.value; $('schedule-save').disabled = !scheduleIsValid(false);});
+          time.addEventListener('change', () => {
+            entry.time = time.value;
+            const valid = scheduleIsValid(false);
+            $('schedule-save').disabled = !valid;
+            setStatus(valid ? 'Schedule is ready to publish.' : 'Check race dates and start times.', !valid);
+          });
           const dateGroup = document.createElement('div');
           dateGroup.append(label, date);
           timeGroup.append(timeLabel, time);
@@ -368,7 +375,9 @@
           preview.append(row);
         }
       }
-      $('schedule-save').disabled = !scheduleIsValid(false);
+      const valid = scheduleIsValid(false);
+      $('schedule-save').disabled = !valid;
+      if (!valid) setStatus('Check the race dates and times: each race must have a unique date in order and a valid start time.', true);
     }
     function scheduleIsValid(showMessage = true) {
       if (!schedulePreview?.length) return false;
@@ -376,7 +385,7 @@
       const dates = new Set();
       for (const entry of schedulePreview) {
         const date = dateFromIso(entry.date);
-        if (!date || date.getFullYear() !== year || dates.has(entry.date) || !/^\\d{2}:\\d{2}$/.test(entry.time || '')) {
+        if (!date || date.getFullYear() !== year || dates.has(entry.date) || !/^\d{2}:\d{2}$/.test(entry.time || '')) {
           if (showMessage) throw new Error('Every race needs a unique, valid date in the selected year and a start time.');
           return false;
         }
