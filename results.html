@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#103B60" />
+  <meta name="description" content="Official Wilson Harbor Yacht Racing Association race results by series and season." />
+  <title>Race Results | WHYRA</title>
+  <style>
+    :root { --blue:#103B60; --dark:#092C49; --red:#B5232F; --ice:#E6F0F5; --ink:#213344; --muted:#556575; --line:#D5E1E9; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#fff; color:var(--ink); font-family:Georgia,'Times New Roman',serif; line-height:1.5; }
+    a { color:inherit; }
+    .container { width:min(1120px,calc(100% - 40px)); margin:auto; }
+    .topline { background:var(--dark); color:var(--ice); padding:8px 12px; text-align:center; font:11px Arial,sans-serif; letter-spacing:.1em; }
+    header { color:#fff; background:var(--blue); border-bottom:5px solid var(--red); }
+    .header-inner { min-height:92px; display:flex; justify-content:space-between; align-items:center; gap:24px; }
+    .brand { display:flex; gap:12px; align-items:center; text-decoration:none; flex-shrink:0; }
+    .emblem { display:grid; place-items:center; border:2px solid #fff; border-radius:50%; width:52px; height:52px; font-size:28px; }
+    .brand strong { display:block; font-size:28px; line-height:1; letter-spacing:.06em; }
+    .brand small { display:block; max-width:230px; margin-top:5px; color:var(--ice); font:10px/1.45 Arial,sans-serif; text-transform:uppercase; letter-spacing:.05em; }
+    nav { display:flex; justify-content:flex-end; align-items:center; gap:19px; font:700 12px Arial,sans-serif; letter-spacing:.04em; text-transform:uppercase; }
+    nav a { text-decoration:none; white-space:nowrap; }
+    nav a:hover, nav a:focus-visible { text-decoration:underline; text-underline-offset:5px; }
+    nav a[aria-current="page"] { border-bottom:2px solid #fff; padding-bottom:4px; }
+    .admin-link { display:inline-flex; align-items:center; border:1px solid #fff; padding:11px 13px; border-radius:3px; }
+    .admin-link:hover { color:var(--blue); background:#fff; text-decoration:none; }
+    .menu-toggle { display:none; color:#fff; background:transparent; border:1px solid #9CB6C9; border-radius:4px; padding:9px 12px; font:bold 13px Arial,sans-serif; cursor:pointer; }
+    button:focus-visible, select:focus-visible, a:focus-visible { outline:3px solid #8dc7eb; outline-offset:3px; }
+    .page-banner { padding:43px 0 39px; background:var(--ice); border-bottom:1px solid var(--line); }
+    .eyebrow { margin:0 0 9px; color:var(--red); text-transform:uppercase; letter-spacing:.14em; font:700 11px Arial,sans-serif; }
+    h1 { margin:0 0 8px; color:var(--blue); font-size:clamp(32px,4.2vw,48px); }
+    .page-banner p:last-child { margin:0; max-width:730px; color:var(--muted); font-size:16px; }
+    main { min-height:48vh; }
+    .content { padding:34px 0 70px; }
+    .filters { display:grid; grid-template-columns:minmax(220px,2fr) minmax(130px,1fr); gap:15px; padding:19px; background:#f5f9fb; border:1px solid var(--line); }
+    label { display:block; margin-bottom:7px; color:var(--blue); font:700 13px Arial,sans-serif; }
+    select { width:100%; min-height:44px; padding:9px 12px; border:1px solid #9cb6c9; border-radius:3px; color:var(--ink); background:#fff; font:15px Arial,sans-serif; }
+    .summary { color:var(--muted); font:14px Arial,sans-serif; margin:22px 0 16px; }
+    .race-list { display:grid; gap:18px; }
+    .race-card { border:1px solid var(--line); border-top:4px solid var(--red); padding:23px; background:#fff; }
+    .race-card h2 { color:var(--blue); margin:0 0 5px; font-size:25px; }
+    .race-meta { margin:0 0 15px; color:var(--muted); font:600 13px/1.6 Arial,sans-serif; }
+    .race-finishes { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font:15px/1.7 Arial,sans-serif; }
+    .race-notes { margin:16px 0 0; padding-top:13px; border-top:1px solid var(--line); font-size:15px; overflow-wrap:anywhere; }
+    .notice { background:var(--ice); padding:18px 21px; border-left:4px solid var(--red); color:var(--ink); font:15px/1.6 Arial,sans-serif; }
+    .notice.error { background:#fff3f3; }
+    footer { background:var(--blue); color:var(--ice); padding:23px 0; font:12px Arial,sans-serif; }
+    .footer-inner { display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap; }
+    footer strong, footer a { color:#fff; }
+    @media(max-width:930px) {
+      .header-inner { flex-wrap:wrap; padding:16px 0; }
+      .menu-toggle { display:block; margin-left:auto; }
+      nav { display:none; width:100%; flex-direction:column; align-items:stretch; gap:0; border-top:1px solid #50738D; padding-top:8px; }
+      nav.open { display:flex; }
+      nav a { padding:12px 5px; }
+      nav .admin-link { width:max-content; margin:9px 0 6px; padding:11px 15px; }
+    }
+    @media(max-width:640px) {
+      .brand strong { font-size:23px; }
+      .brand small { font-size:9px; max-width:180px; }
+      .emblem { width:44px; height:44px; font-size:23px; }
+      .filters { grid-template-columns:1fr; }
+      .page-banner { padding:30px 0; }
+      .content { padding:22px 0 45px; }
+      .race-card { padding:18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topline">WILSON HARBOR • LAKE ONTARIO • NEW YORK</div>
+  <header>
+    <div class="container header-inner">
+      <a class="brand" href="./index.html" aria-label="WHYRA Home">
+        <span class="emblem" aria-hidden="true">⛵</span>
+        <span><strong>WHYRA</strong><small>Wilson Harbor Yacht Racing Association</small></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-controls="site-nav" aria-expanded="false">Menu ☰</button>
+      <nav id="site-nav" aria-label="Main navigation">
+        <a href="./index.html">Home</a>
+        <a href="./schedule.html">Schedule</a>
+        <a href="./results.html" aria-current="page">Results</a>
+        <a href="./index.html#about">About</a>
+        <a href="./index.html#contact">Contact</a>
+        <a class="admin-link" href="./admin.html">🔒 Admin Login</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="page-banner">
+      <div class="container">
+        <p class="eyebrow">Wilson Harbor Yacht Racing Association</p>
+        <h1>Race Results</h1>
+        <p>Browse published results by racing series and season. Official Sailwave results integration is planned for a future update.</p>
+      </div>
+    </section>
+    <section class="container content" aria-label="Published race results">
+      <div class="filters">
+        <div>
+          <label for="series-filter">Racing series</label>
+          <select id="series-filter">
+            <option value="all">All racing series</option>
+            <option value="brian-murray">Series 1 — Brian Murray</option>
+            <option value="dave-segal">Series 2 — Dave Segal</option>
+            <option value="low-water">Series 3 — Low Water</option>
+            <option value="unassigned">Older results (not assigned)</option>
+          </select>
+        </div>
+        <div>
+          <label for="year-filter">Racing season</label>
+          <select id="year-filter"><option value="all">All seasons</option></select>
+        </div>
+      </div>
+      <p id="results-summary" class="summary" role="status" aria-live="polite">Loading published race results…</p>
+      <div id="race-list" class="race-list"></div>
+    </section>
+  </main>
+  <footer>
+    <div class="container footer-inner">
+      <span><strong>WHYRA</strong> · Wilson Harbor Yacht Racing Association</span>
+      <span>© <span id="year"></span> WHYRA. All rights reserved.</span>
+    </div>
+  </footer>
+  <script>
+    const menuToggle = document.querySelector('.menu-toggle');
+    const navigation = document.getElementById('site-nav');
+    menuToggle.addEventListener('click', () => {
+      const opened = menuToggle.getAttribute('aria-expanded') === 'true';
+      menuToggle.setAttribute('aria-expanded', String(!opened));
+      navigation.classList.toggle('open', !opened);
+    });
+    navigation.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+      navigation.classList.remove('open');
+      menuToggle.setAttribute('aria-expanded', 'false');
+    }));
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+    import { getFirestore, collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
+      authDomain: 'whyra-website.firebaseapp.com',
+      projectId: 'whyra-website',
+      storageBucket: 'whyra-website.firebasestorage.app',
+      messagingSenderId: '547669204835',
+      appId: '1:547669204835:web:9c8c2bdc633ae842687d56'
+    };
+    const db = getFirestore(initializeApp(firebaseConfig));
+    const seriesFilter = document.getElementById('series-filter');
+    const yearFilter = document.getElementById('year-filter');
+    const summary = document.getElementById('results-summary');
+    const list = document.getElementById('race-list');
+    const seriesNames = {
+      'brian-murray': 'Brian Murray',
+      'dave-segal': 'Dave Segal',
+      'low-water': 'Low Water'
+    };
+    let races = [];
+    const seasonOf = (race) => /^\d{4}-/.test(race.date || '') ? race.date.slice(0, 4) : String(race.season || 'Unknown');
+    const dateLabel = (date) => /^\d{4}-\d{2}-\d{2}$/.test(date || '')
+      ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+      : (date || 'Date not provided');
+    function refreshYears() {
+      const previous = yearFilter.value;
+      const years = [...new Set(races.map(seasonOf))].sort((a, b) => b.localeCompare(a));
+      yearFilter.replaceChildren(new Option('All seasons', 'all'));
+      for (const year of years) yearFilter.add(new Option(year, year));
+      yearFilter.value = years.includes(previous) ? previous : 'all';
+    }
+    function render() {
+      const chosenSeries = seriesFilter.value;
+      const chosenYear = yearFilter.value;
+      const visible = races.filter(race =>
+        (chosenSeries === 'all' || (chosenSeries === 'unassigned'
+          ? !seriesNames[race.series]
+          : race.series === chosenSeries)) &&
+        (chosenYear === 'all' || seasonOf(race) === chosenYear)
+      );
+      list.replaceChildren();
+      if (!visible.length) {
+        summary.textContent = races.length ? 'No published races match these filters.' : 'No race results have been published yet.';
+        return;
+      }
+      summary.textContent = `${visible.length} published ${visible.length === 1 ? 'race' : 'races'} shown`;
+      for (const race of visible) {
+        const card = document.createElement('article');
+        card.className = 'race-card';
+        const title = document.createElement('h2');
+        title.textContent = race.name || 'Unnamed race';
+        const meta = document.createElement('p');
+        meta.className = 'race-meta';
+        meta.textContent = [seriesNames[race.series] || 'Unassigned series', dateLabel(race.date), race.division].filter(Boolean).join(' • ');
+        const finishes = document.createElement('pre');
+        finishes.className = 'race-finishes';
+        finishes.textContent = race.results || 'No finishing details provided.';
+        card.append(title, meta, finishes);
+        if (race.notes) {
+          const notes = document.createElement('p');
+          notes.className = 'race-notes';
+          notes.textContent = `Notes: ${race.notes}`;
+          card.append(notes);
+        }
+        list.append(card);
+      }
+    }
+    seriesFilter.addEventListener('change', render);
+    yearFilter.addEventListener('change', render);
+    const publishedQuery = query(collection(db, 'raceResults'), where('published', '==', true));
+    onSnapshot(publishedQuery, snapshot => {
+      races = snapshot.docs.map(item => ({ id:item.id, ...item.data() }));
+      races.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (a.name || '').localeCompare(b.name || ''));
+      refreshYears();
+      render();
+    }, error => {
+      list.replaceChildren();
+      summary.textContent = 'Race results are temporarily unavailable. Please try again later.';
+      console.error('WHYRA public results error:', error);
+    });
+  </script>
+</body>
+</html>
