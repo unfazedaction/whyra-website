@@ -353,7 +353,7 @@
           date.addEventListener('change', () => {
             entry.date = date.value;
             const valid = scheduleIsValid(false);
-            $('schedule-save').disabled = !valid;
+            $('schedule-save').disabled = false;
             setStatus(valid ? 'Schedule is ready to publish.' : 'Check race dates: each must be unique and in chronological order.', !valid);
           });
           const timeGroup = document.createElement('div');
@@ -365,7 +365,7 @@
           time.addEventListener('change', () => {
             entry.time = time.value;
             const valid = scheduleIsValid(false);
-            $('schedule-save').disabled = !valid;
+            $('schedule-save').disabled = false;
             setStatus(valid ? 'Schedule is ready to publish.' : 'Check race dates and start times.', !valid);
           });
           const dateGroup = document.createElement('div');
@@ -376,8 +376,8 @@
         }
       }
       const valid = scheduleIsValid(false);
-      $('schedule-save').disabled = !valid;
-      if (!valid) setStatus('Check the race dates and times: each race must have a unique date in order and a valid start time.', true);
+      $('schedule-save').disabled = false;
+      if (!valid) setStatus('Preview created. Review dates; click Publish Entire Season to see the exact validation issue.', true);
     }
     function scheduleIsValid(showMessage = true) {
       if (!schedulePreview?.length) return false;
@@ -385,15 +385,23 @@
       const dates = new Set();
       for (const entry of schedulePreview) {
         const date = dateFromIso(entry.date);
-        if (!date || date.getFullYear() !== year || dates.has(entry.date) || !/^\d{2}:\d{2}$/.test(entry.time || '')) {
-          if (showMessage) throw new Error('Every race needs a unique, valid date in the selected year and a start time.');
+        if (!date || date.getFullYear() !== year) {
+          if (showMessage) throw new Error(`${entry.name}: choose a valid date in ${year}.`);
+          return false;
+        }
+        if (dates.has(entry.date)) {
+          if (showMessage) throw new Error(`${entry.name}: ${entry.date} is already used by another race.`);
+          return false;
+        }
+        if (!/^\d{2}:\d{2}$/.test(entry.time || '')) {
+          if (showMessage) throw new Error(`${entry.name}: enter a valid start time (for example, 19:00).`);
           return false;
         }
         dates.add(entry.date);
       }
       const byOrder = schedulePreview.map(entry => entry.date);
       if (byOrder.some((date, index) => index > 0 && date <= byOrder[index - 1])) {
-        if (showMessage) throw new Error('Race dates must be in chronological order. Check any manually edited dates.');
+        if (showMessage) throw new Error('Race dates must be in chronological order. If you moved a race, check its date against the race before and after it.');
         return false;
       }
       return true;
@@ -402,7 +410,7 @@
       try {
         schedulePreview = buildSeason(Number($('schedule-year').value), $('schedule-start').value, Number($('schedule-races-per-series').value));
         renderSchedulePreview();
-        setStatus(`Review all ${schedulePreview.length} individual races. Dates and start times are editable before publishing.`);
+        setStatus(`Review all ${schedulePreview.length} individual races, then click Publish Entire Season. If anything is invalid, you will see a specific error.`);
       } catch (error) {
         invalidatePreview();
         setStatus(error.message, true);
@@ -649,7 +657,9 @@
       if (savingSchedule || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return;
       try {
         const year = Number($('schedule-year').value);
+        if (!schedulePreview?.length) throw new Error('First click Preview Schedule.');
         scheduleIsValid(true);
+        if (!schedulePreview?.length) throw new Error('Click Preview Schedule before publishing.');
         const generated = schedulePreview.map(race => ({...race}));
         if (!confirm(`Publish these ${generated.length} individual scheduled races for ${year}? This will replace the previously generated schedule for this year.`)) return;
         savingSchedule = true;
