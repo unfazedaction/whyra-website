@@ -48,6 +48,9 @@
     .checkbox-label { display:flex; gap:10px; align-items:center; font-weight:normal; margin:18px 0 6px; }
     .checkbox-label input { width:18px; height:18px; flex:none; }
     .hint { font-size:12px; color:var(--muted); margin:6px 0; }
+    .schedule-card { border:1px solid #cbd9e4; border-left:4px solid var(--blue); padding:16px; margin-top:12px; background:#fff; }
+    .schedule-card h3 { margin:0 0 6px; color:var(--blue); font-size:18px; }
+    .schedule-card p { margin:5px 0; font-size:14px; }
     .result-card { border:1px solid #cbd9e4; padding:16px; margin-top:12px; background:#fff; }
     .result-card h3 { margin:0 0 6px; color:var(--blue); font-size:18px; }
     .result-card p { margin:5px 0; }
@@ -150,6 +153,34 @@
             <div id="results-list" aria-live="polite"></div>
           </section>
         </div>
+        <div class="section" aria-labelledby="schedule-heading">
+          <h2 id="schedule-heading">Annual Race Schedule</h2>
+          <p class="subtext">Set the first Thursday of the season once each year. Select the number of races per series. WHYRA schedules the same number for each series, every Thursday at 7:00 PM, in this order: Brian Murray, Dave Segal, then Low Water.</p>
+          <div class="layout">
+            <section aria-labelledby="schedule-edit-title">
+              <h2 id="schedule-edit-title">Set Season Start</h2>
+              <form id="schedule-form">
+                <label for="schedule-year">Racing season</label>
+                <input id="schedule-year" type="number" min="2020" max="2100" step="1" required />
+                <label for="schedule-start">First race (Thursday in May)</label>
+                <input id="schedule-start" type="date" required />
+                <label for="schedule-races-per-series">Races per series</label>
+                <input id="schedule-races-per-series" type="number" min="1" max="18" step="1" value="5" required />
+                <p class="hint">Each of the three series receives the same number of races. All races must fall between May and August. The schedule will tell you if the selected count will not fit.</p>
+                <button type="button" id="schedule-preview-button" class="outline">Preview Schedule</button>
+                <div class="details" id="schedule-preview" aria-live="polite">Select a start date, then preview the schedule.</div>
+                <div class="button-row"><button id="schedule-save" type="submit" disabled>Publish Entire Season</button></div>
+                <p class="hint">Publishing replaces the generated schedule for the selected year in Firestore, including removing obsolete dates if the race count decreases. Race results and other years are never changed.</p>
+              </form>
+            </section>
+            <section aria-labelledby="schedule-saved-title">
+              <h2 id="schedule-saved-title">Saved Racing Seasons</h2>
+              <p class="hint">Select an existing season to adjust its start date. All races for that season are generated automatically.</p>
+              <p id="schedule-loading" class="hint">Loading seasons…</p>
+              <div id="schedule-list" aria-live="polite"></div>
+            </section>
+          </div>
+        </div>
       </div>
 
       <div id="blocked" hidden>
@@ -164,7 +195,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyCLGZ4OtkKbGbr82QKEWrSXXKoMMv9jxyg',
@@ -186,6 +217,10 @@
     const resultForm = $('result-form');
     const saveButton = $('save-button');
     let stopResults = null;
+    let stopSchedule = null;
+    let scheduledRaces = [];
+    let schedulePreview = null;
+    let savingSchedule = false;
     let currentResults = [];
     let editingId = null;
     let saving = false;
@@ -195,7 +230,7 @@
       'low-water': 'Series 3 — Low Water'
     };
     const seriesName = (key) => SERIES[key] || 'Unassigned (older result)';
-    const raceYear = (entry) => /^\\d{4}-/.test(entry.date || '') ? entry.date.slice(0, 4) : 'Unknown';
+    const raceYear = (entry) => /^\d{4}-/.test(entry.date || '') ? entry.date.slice(0, 4) : 'Unknown';
 
 
     function setStatus(message, error = false) {
@@ -212,6 +247,124 @@
       $('edit-title').textContent = 'Publish Race Results';
       saveButton.textContent = 'Publish Results';
       $('cancel-edit').hidden = true;
+    }
+
+    const SERIES_SEQUENCE = [
+      ['brian-murray', 'Brian Murray'],
+      ['dave-segal', 'Dave Segal'],
+      ['low-water', 'Low Water']
+    ];
+    const localIso = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    const dateFromIso = value => {
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 12);
+      return localIso(date) === value ? date : null;
+    };
+    function buildSeason(year, startValue, countPerSeries) {
+      const start = dateFromIso(startValue);
+      if (!Number.isInteger(year) || year < 2020 || year > 2100 || !start || start.getFullYear() !== year || start.getMonth() !== 4 || start.getDay() !== 4) {
+        throw new Error('Choose a Thursday in May of the selected racing year.');
+      }
+      if (!Number.isInteger(countPerSeries) || countPerSeries < 1 || countPerSeries > 18) {
+        throw new Error('Enter a whole number of races per series between 1 and 18.');
+      }
+      const entries = [];
+      for (let i = 0; i < countPerSeries * SERIES_SEQUENCE.length; i++) {
+        const raceDate = new Date(start);
+        raceDate.setDate(start.getDate() + i * 7);
+        if (raceDate.getFullYear() !== year || raceDate.getMonth() > 7) {
+          throw new Error('The last race would fall after August 31. Choose an earlier Thursday in May.');
+        }
+        const seriesIndex = Math.floor(i / countPerSeries);
+        const [series, name] = SERIES_SEQUENCE[seriesIndex];
+        const raceNumber = (i % countPerSeries) + 1;
+        entries.push({
+          id: `${year}-${series}-${raceNumber}`,
+          series, season: String(year),
+          name: `${name} — Race ${raceNumber}`,
+          date: localIso(raceDate), time: '19:00',
+          location: 'Wilson Harbor', notes: '',
+          published: true, raceNumber, generated: true
+        });
+      }
+      return entries;
+    }
+    function invalidatePreview() {
+      schedulePreview = null;
+      $('schedule-save').disabled = true;
+      $('schedule-preview').textContent = 'Select Preview Schedule to review your dates before publishing.';
+    }
+    function previewSchedule() {
+      try {
+        const year = Number($('schedule-year').value);
+        schedulePreview = buildSeason(year, $('schedule-start').value, Number($('schedule-races-per-series').value));
+        const preview = $('schedule-preview');
+        preview.replaceChildren();
+        for (const [series, name] of SERIES_SEQUENCE) {
+          const heading = document.createElement('strong');
+          heading.textContent = name;
+          const list = document.createElement('ul');
+          for (const entry of schedulePreview.filter(item => item.series === series)) {
+            const item = document.createElement('li');
+            item.textContent = `Race ${entry.raceNumber} — ${entry.date}, 7:00 PM`;
+            list.append(item);
+          }
+          preview.append(heading, list);
+        }
+        $('schedule-save').disabled = false;
+        setStatus(`Preview ready: ${schedulePreview.length} Thursday races (${schedulePreview.length / 3} per series) in ${year}. Review the dates before publishing.`);
+      } catch (error) {
+        invalidatePreview();
+        setStatus(error.message, true);
+      }
+    }
+    function displaySchedule() {
+      const list = $('schedule-list');
+      list.replaceChildren();
+      const years = [...new Set(scheduledRaces.filter(x => x.generated === true).map(x => x.season))].sort((a,b) => b.localeCompare(a));
+      if (!years.length) {
+        const note = document.createElement('p');
+        note.className = 'hint';
+        note.textContent = 'No auto-generated seasons published yet.';
+        list.append(note);
+        return;
+      }
+      for (const year of years) {
+        const seasonRaces = scheduledRaces.filter(x => x.generated === true && x.season === year);
+        const first = seasonRaces.find(x => x.id === `${year}-brian-murray-1`);
+        const card = document.createElement('article');
+        card.className = 'schedule-card';
+        const title = document.createElement('h3');
+        title.textContent = `${year} Racing Season`;
+        const detail = document.createElement('p');
+        detail.textContent = `${seasonRaces.length} races saved • First race: ${first?.date || 'Unknown'}`;
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'outline';
+        edit.textContent = 'Adjust Start Date';
+        edit.addEventListener('click', () => {
+          $('schedule-year').value = year;
+          $('schedule-start').value = first?.date || '';
+          $('schedule-races-per-series').value = String(seasonRaces.filter(x => x.series === 'brian-murray').length || 5);
+          invalidatePreview();
+          $('schedule-start').focus();
+          setStatus(`Adjust the ${year} start date, preview, then publish the updated schedule.`);
+        });
+        card.append(title, detail, edit);
+        list.append(card);
+      }
+    }
+    function startScheduleListener() {
+      if (stopSchedule) stopSchedule();
+      $('schedule-loading').hidden = false;
+      stopSchedule = onSnapshot(collection(db, 'raceSchedule'), snapshot => {
+        scheduledRaces = snapshot.docs.map(item => ({id:item.id, ...item.data()}));
+        $('schedule-loading').hidden = true;
+        displaySchedule();
+      }, error => {
+        $('schedule-loading').hidden = true;
+        setStatus(`Unable to load race schedule: ${error.message}`, true);
+      });
     }
 
     function updateYearFilter() {
@@ -324,11 +477,13 @@
       dashboard.hidden = !isAdmin;
       blocked.hidden = !user || isAdmin;
       if (!isAdmin && stopResults) { stopResults(); stopResults = null; currentResults = []; resetEditor(); }
+      if (!isAdmin && stopSchedule) { stopSchedule(); stopSchedule = null; scheduledRaces = []; invalidatePreview(); }
       if (!user) setStatus('Please sign in to continue.');
       else if (isAdmin) {
         $('signed-in-email').textContent = user.email || 'WHYRA administrator';
         setStatus('Secure administrator session active.');
         startResultsListener();
+        startScheduleListener();
       } else setStatus('This account does not have administrator permission.', true);
     }, () => {
       loginForm.hidden = false;
@@ -391,6 +546,46 @@
         setStatus(`Unable to save race results: ${error.message}`, true);
       } finally { saving = false; saveButton.disabled = false; }
     });
+
+    $('schedule-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (savingSchedule || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return;
+      try {
+        const year = Number($('schedule-year').value);
+        const generated = buildSeason(year, $('schedule-start').value, Number($('schedule-races-per-series').value));
+        if (!schedulePreview || JSON.stringify(schedulePreview) !== JSON.stringify(generated)) {
+          throw new Error('Preview the current start date before publishing.');
+        }
+        if (!confirm(`Publish or replace the ${year} season with ${generated.length} races (${generated.length / 3} per series) at 7:00 PM on consecutive Thursdays?`)) return;
+        savingSchedule = true;
+        $('schedule-save').disabled = true;
+        const batch = writeBatch(db);
+        const newIds = new Set(generated.map(race => race.id));
+        // Remove previously generated dates no longer in the new season.
+        // Unrelated years and manually created entries are left untouched.
+        for (const oldRace of scheduledRaces) {
+          if (oldRace.generated === true && oldRace.season === String(year) && !newIds.has(oldRace.id)) {
+            batch.delete(doc(db, 'raceSchedule', oldRace.id));
+          }
+        }
+        for (const race of generated) {
+          const {id, ...data} = race;
+          batch.set(doc(db, 'raceSchedule', id), {...data, updatedAt: serverTimestamp()});
+        }
+        await batch.commit();
+        setStatus(`${year} schedule published: ${generated.length} races (${generated.length / 3} per series).`);
+        invalidatePreview();
+      } catch (error) {
+        setStatus(`Unable to publish schedule: ${error.message}`, true);
+      } finally {
+        savingSchedule = false;
+      }
+    });
+    $('schedule-year').addEventListener('input', invalidatePreview);
+    $('schedule-start').addEventListener('input', invalidatePreview);
+    $('schedule-races-per-series').addEventListener('input', invalidatePreview);
+    $('schedule-preview-button').addEventListener('click', previewSchedule);
+    $('schedule-year').value = String(new Date().getFullYear());
 
     $('filter-series').addEventListener('change', displayResults);
     $('filter-season').addEventListener('change', displayResults);
