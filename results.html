@@ -12,21 +12,21 @@
     body { margin:0; background:#fff; color:var(--ink); font-family:Georgia,'Times New Roman',serif; line-height:1.5; }
     a { color:inherit; }
     .container { width:min(1120px,calc(100% - 40px)); margin:auto; }
-    .topline { background:var(--dark); color:var(--ice); padding:8px 12px; text-align:center; font:11px Arial,sans-serif; letter-spacing:.1em; }
-    header { color:#fff; background:var(--blue); border-bottom:5px solid var(--red); }
-    .header-inner { min-height:92px; display:flex; justify-content:space-between; align-items:center; gap:24px; }
-    .brand { display:flex; gap:12px; align-items:center; text-decoration:none; flex-shrink:0; }
-    .emblem { display:grid; place-items:center; border:2px solid #fff; border-radius:50%; width:52px; height:52px; font-size:28px; }
+    .topline { background:var(--dark); color:var(--ice); text-align:center; padding:8px 12px; font:11px Arial,sans-serif; letter-spacing:.1em; }
+    header { background:var(--blue); color:#fff; border-bottom:5px solid var(--red); }
+    .header-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:92px; }
+    .brand { display:flex; align-items:center; gap:12px; text-decoration:none; flex-shrink:0; min-width:0; }
+    .emblem { display:grid; place-items:center; width:52px; height:52px; border:2px solid #fff; border-radius:50%; font-size:28px; flex-shrink:0; }
     .brand strong { display:block; font-size:28px; line-height:1; letter-spacing:.06em; }
-    .brand small { display:block; max-width:230px; margin-top:5px; color:var(--ice); font:10px/1.45 Arial,sans-serif; text-transform:uppercase; letter-spacing:.05em; }
-    nav { display:flex; justify-content:flex-end; align-items:center; gap:19px; font:700 12px Arial,sans-serif; letter-spacing:.04em; text-transform:uppercase; }
+    .brand small { display:block; margin-top:5px; color:var(--ice); font:9px/1.45 Arial,sans-serif; text-transform:uppercase; letter-spacing:0; white-space:nowrap; }
+    nav { display:flex; align-items:center; justify-content:flex-end; gap:16px; font:700 12px Arial,sans-serif; letter-spacing:.04em; text-transform:uppercase; }
     nav a { text-decoration:none; white-space:nowrap; }
-    nav a:hover, nav a:focus-visible { text-decoration:underline; text-underline-offset:5px; }
+    nav a:not(.admin-link):hover,nav a:not(.admin-link):focus-visible { text-decoration:underline; text-underline-offset:5px; }
     nav a[aria-current="page"] { border-bottom:2px solid #fff; padding-bottom:4px; }
     .admin-link { display:inline-flex; align-items:center; border:1px solid #fff; padding:11px 13px; border-radius:3px; }
-    .admin-link:hover { color:var(--blue); background:#fff; text-decoration:none; }
+    .admin-link:hover { background:#fff; color:var(--blue); text-decoration:none; }
     .menu-toggle { display:none; color:#fff; background:transparent; border:1px solid #9CB6C9; border-radius:4px; padding:9px 12px; font:bold 13px Arial,sans-serif; cursor:pointer; }
-    button:focus-visible, select:focus-visible, a:focus-visible { outline:3px solid #8dc7eb; outline-offset:3px; }
+    a:focus-visible,button:focus-visible,select:focus-visible { outline:3px solid #8dc7eb; outline-offset:3px; }
     .page-banner { padding:43px 0 39px; background:var(--ice); border-bottom:1px solid var(--line); }
     .eyebrow { margin:0 0 9px; color:var(--red); text-transform:uppercase; letter-spacing:.14em; font:700 11px Arial,sans-serif; }
     h1 { margin:0 0 8px; color:var(--blue); font-size:clamp(32px,4.2vw,48px); }
@@ -58,7 +58,7 @@
     }
     @media(max-width:640px) {
       .brand strong { font-size:23px; }
-      .brand small { font-size:9px; max-width:180px; }
+      .brand small { font-size:9px; white-space:nowrap; }
       .emblem { width:44px; height:44px; font-size:23px; }
       .filters { grid-template-columns:1fr; }
       .page-banner { padding:30px 0; }
@@ -80,7 +80,7 @@
         <a href="./index.html">Home</a>
         <a href="./schedule.html">Schedule</a>
         <a href="./results.html" aria-current="page">Results</a>
-        <a href="./index.html#about">About</a>
+        <a href="./about.html">About</a>
         <a href="./index.html#contact">Contact</a>
         <a class="admin-link" href="./admin.html">🔒 Admin Login</a>
       </nav>
