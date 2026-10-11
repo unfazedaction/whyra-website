@@ -56,8 +56,7 @@
     .welcome h2 { font-size:25px; line-height:1.2; color:var(--blue); margin:0 0 7px; }
     .welcome p { color:#465E70; margin:0; font-size:14px; }
     .club-info { padding:28px 0 30px; }
-    .info-inner { display:grid; grid-template-columns:1fr 1fr; gap:35px; }
-    .info-inner > div+div { border-left:1px solid var(--line); padding-left:35px; }
+    .info-inner { max-width:800px; }
     .club-info h2 { font-size:20px; color:var(--blue); margin:0 0 6px; }
     .club-info p { margin:0; color:var(--muted); font-size:13px; }
     footer { background:var(--blue); color:var(--ice); padding:21px 0; font-size:12px; }
@@ -78,8 +77,6 @@
       .hero-copy { padding:44px 0 8px; }
       .hero-art { justify-content:center; max-height:160px; overflow:hidden; }
       .hero-art svg { width:280px; transform:translateY(24px); }
-      .info-inner { gap:18px; }
-      .info-inner > div+div { padding-left:18px; }
     }
     @media(max-width:540px) {
       .container { width:calc(100% - 30px); }
@@ -90,8 +87,6 @@
       h1 { font-size:37px; }
       .hero p { font-size:15px; }
       .button { flex:1; }
-      .info-inner { grid-template-columns:1fr; gap:16px; }
-      .info-inner > div+div { border-left:0; border-top:1px solid var(--line); padding:17px 0 0; }
     }
     @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
   </style>
@@ -110,7 +105,7 @@
         <a href="./schedule.html">Schedule</a>
         <a href="./results.html">Results</a>
         <a href="./about.html">About</a>
-        <a href="#contact">Contact</a>
+        <a href="./contact.html">Contact</a>
         <a class="admin-link" href="./admin.html"><span aria-hidden="true">🔒</span> Admin Login</a>
       </nav>
     </div>
@@ -157,10 +152,6 @@
         <div id="about">
           <h2>About WHYRA</h2>
           <p>The Wilson Harbor Yacht Racing Association brings sailors together for racing on Lake Ontario from Wilson Harbor, New York.</p>
-        </div>
-        <div id="contact">
-          <h2>Contact WHYRA</h2>
-          <p>Official club contact information will be posted here when available.</p>
         </div>
       </div>
     </section>
