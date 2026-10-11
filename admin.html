@@ -162,20 +162,28 @@
               <form id="schedule-form">
                 <label for="schedule-year">Racing season</label>
                 <input id="schedule-year" type="number" min="2020" max="2100" step="1" required />
-                <label for="schedule-start">First race (Thursday in May)</label>
+                <label for="schedule-start">First race date (Thursday)</label>
                 <input id="schedule-start" type="date" required />
                 <label for="schedule-races-per-series">Races per series</label>
                 <input id="schedule-races-per-series" type="number" min="1" max="18" step="1" value="5" required />
-                <p class="hint">Each of the three series receives the same number of races. All races must fall between May and August. The schedule will tell you if the selected count will not fit.</p>
+                <p class="hint">Each series has the same number of races. Races begin at 7:00 PM by default. You can skip any Thursday and edit individual race dates before publishing.</p>
                 <button type="button" id="schedule-preview-button" class="outline">Preview Schedule</button>
-                <div class="details" id="schedule-preview" aria-live="polite">Select a start date, then preview the schedule.</div>
+                <div class="field-row">
+                  <div>
+                    <label for="skip-thursday">Skip a Thursday (optional)</label>
+                    <input id="skip-thursday" type="date" />
+                  </div>
+                  <div style="align-self:end"><button type="button" id="skip-add" class="outline">Skip This Thursday</button></div>
+                </div>
+                <div id="skipped-weeks" class="hint" aria-live="polite"></div>
+                <div class="details" id="schedule-preview" aria-live="polite">Choose the season start and number of races, then preview the full schedule.</div>
                 <div class="button-row"><button id="schedule-save" type="submit" disabled>Publish Entire Season</button></div>
-                <p class="hint">Publishing replaces the generated schedule for the selected year in Firestore, including removing obsolete dates if the race count decreases. Race results and other years are never changed.</p>
+                <p class="hint">Publishing saves the exact individual race dates shown in the preview. Revising a season replaces its generated dates, including obsolete races if the race count decreases. Race results and other years are never changed.</p>
               </form>
             </section>
             <section aria-labelledby="schedule-saved-title">
               <h2 id="schedule-saved-title">Saved Racing Seasons</h2>
-              <p class="hint">Select an existing season to adjust its start date. All races for that season are generated automatically.</p>
+              <p class="hint">Select an existing season to load and adjust its individual race dates.</p>
               <p id="schedule-loading" class="hint">Loading seasons…</p>
               <div id="schedule-list" aria-live="polite"></div>
             </section>
@@ -221,6 +229,7 @@
     let scheduledRaces = [];
     let schedulePreview = null;
     let savingSchedule = false;
+    const skippedThursdays = new Set();
     let currentResults = [];
     let editingId = null;
     let saving = false;
@@ -262,57 +271,129 @@
     };
     function buildSeason(year, startValue, countPerSeries) {
       const start = dateFromIso(startValue);
-      if (!Number.isInteger(year) || year < 2020 || year > 2100 || !start || start.getFullYear() !== year || start.getMonth() !== 4 || start.getDay() !== 4) {
-        throw new Error('Choose a Thursday in May of the selected racing year.');
+      if (!Number.isInteger(year) || year < 2020 || year > 2100 || !start || start.getFullYear() !== year || start.getDay() !== 4) {
+        throw new Error('Choose a Thursday in the selected racing year.');
       }
       if (!Number.isInteger(countPerSeries) || countPerSeries < 1 || countPerSeries > 18) {
         throw new Error('Enter a whole number of races per series between 1 and 18.');
       }
       const entries = [];
-      for (let i = 0; i < countPerSeries * SERIES_SEQUENCE.length; i++) {
-        const raceDate = new Date(start);
-        raceDate.setDate(start.getDate() + i * 7);
-        if (raceDate.getFullYear() !== year || raceDate.getMonth() > 7) {
-          throw new Error('The last race would fall after August 31. Choose an earlier Thursday in May.');
+      let week = 0;
+      while (entries.length < countPerSeries * SERIES_SEQUENCE.length) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + week * 7);
+        week++;
+        if (week > 160 || date.getFullYear() !== year) {
+          throw new Error('The calculated races run beyond this calendar year. Choose an earlier start or fewer skipped weeks.');
         }
-        const seriesIndex = Math.floor(i / countPerSeries);
+        const dateString = localIso(date);
+        if (skippedThursdays.has(dateString)) continue;
+        const seriesIndex = Math.floor(entries.length / countPerSeries);
         const [series, name] = SERIES_SEQUENCE[seriesIndex];
-        const raceNumber = (i % countPerSeries) + 1;
+        const raceNumber = (entries.length % countPerSeries) + 1;
         entries.push({
-          id: `${year}-${series}-${raceNumber}`,
-          series, season: String(year),
-          name: `${name} — Race ${raceNumber}`,
-          date: localIso(raceDate), time: '19:00',
-          location: 'Wilson Harbor', notes: '',
-          published: true, raceNumber, generated: true
+          id: `${year}-${series}-${raceNumber}`, series, season: String(year),
+          name: `${name} — Race ${raceNumber}`, date: dateString, time: '19:00',
+          location: 'Wilson Harbor', notes: '', published: true, raceNumber, generated: true
         });
       }
       return entries;
     }
+    function renderSkips() {
+      const target = $('skipped-weeks');
+      target.replaceChildren();
+      if (!skippedThursdays.size) {
+        target.textContent = 'No skipped Thursdays. Add July 4 week or any other Thursday if needed.';
+        return;
+      }
+      for (const date of [...skippedThursdays].sort()) {
+        const row = document.createElement('div');
+        row.className = 'button-row';
+        row.style.alignItems = 'center';
+        row.style.marginTop = '8px';
+        const label = document.createElement('span');
+        label.textContent = `${date} — no race`;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'outline';
+        remove.textContent = 'Remove skip';
+        remove.addEventListener('click', () => {
+          skippedThursdays.delete(date);
+          renderSkips();
+          previewSchedule();
+        });
+        row.append(label, remove);
+        target.append(row);
+      }
+    }
     function invalidatePreview() {
       schedulePreview = null;
       $('schedule-save').disabled = true;
-      $('schedule-preview').textContent = 'Select Preview Schedule to review your dates before publishing.';
+      $('schedule-preview').textContent = 'Choose Preview Schedule to review all individual races.';
+    }
+    function renderSchedulePreview() {
+      const preview = $('schedule-preview');
+      preview.replaceChildren();
+      if (!schedulePreview) return;
+      for (const [series, name] of SERIES_SEQUENCE) {
+        const heading = document.createElement('h3');
+        heading.textContent = name;
+        preview.append(heading);
+        for (const entry of schedulePreview.filter(item => item.series === series)) {
+          const row = document.createElement('div');
+          row.className = 'field-row';
+          row.style.alignItems = 'end';
+          row.style.marginBottom = '12px';
+          const label = document.createElement('label');
+          label.textContent = `Race ${entry.raceNumber} — Date`;
+          const date = document.createElement('input');
+          date.type = 'date';
+          date.value = entry.date;
+          date.setAttribute('aria-label', `${name}, race ${entry.raceNumber} date`);
+          date.addEventListener('change', () => {
+            entry.date = date.value;
+            $('schedule-save').disabled = !scheduleIsValid(false);
+          });
+          const timeGroup = document.createElement('div');
+          const timeLabel = document.createElement('label');
+          timeLabel.textContent = 'Start time';
+          const time = document.createElement('input');
+          time.type = 'time';
+          time.value = entry.time || '19:00';
+          time.addEventListener('change', () => {entry.time = time.value; $('schedule-save').disabled = !scheduleIsValid(false);});
+          const dateGroup = document.createElement('div');
+          dateGroup.append(label, date);
+          timeGroup.append(timeLabel, time);
+          row.append(dateGroup, timeGroup);
+          preview.append(row);
+        }
+      }
+      $('schedule-save').disabled = !scheduleIsValid(false);
+    }
+    function scheduleIsValid(showMessage = true) {
+      if (!schedulePreview?.length) return false;
+      const year = Number($('schedule-year').value);
+      const dates = new Set();
+      for (const entry of schedulePreview) {
+        const date = dateFromIso(entry.date);
+        if (!date || date.getFullYear() !== year || dates.has(entry.date) || !/^\\d{2}:\\d{2}$/.test(entry.time || '')) {
+          if (showMessage) throw new Error('Every race needs a unique, valid date in the selected year and a start time.');
+          return false;
+        }
+        dates.add(entry.date);
+      }
+      const byOrder = schedulePreview.map(entry => entry.date);
+      if (byOrder.some((date, index) => index > 0 && date <= byOrder[index - 1])) {
+        if (showMessage) throw new Error('Race dates must be in chronological order. Check any manually edited dates.');
+        return false;
+      }
+      return true;
     }
     function previewSchedule() {
       try {
-        const year = Number($('schedule-year').value);
-        schedulePreview = buildSeason(year, $('schedule-start').value, Number($('schedule-races-per-series').value));
-        const preview = $('schedule-preview');
-        preview.replaceChildren();
-        for (const [series, name] of SERIES_SEQUENCE) {
-          const heading = document.createElement('strong');
-          heading.textContent = name;
-          const list = document.createElement('ul');
-          for (const entry of schedulePreview.filter(item => item.series === series)) {
-            const item = document.createElement('li');
-            item.textContent = `Race ${entry.raceNumber} — ${entry.date}, 7:00 PM`;
-            list.append(item);
-          }
-          preview.append(heading, list);
-        }
-        $('schedule-save').disabled = false;
-        setStatus(`Preview ready: ${schedulePreview.length} Thursday races (${schedulePreview.length / 3} per series) in ${year}. Review the dates before publishing.`);
+        schedulePreview = buildSeason(Number($('schedule-year').value), $('schedule-start').value, Number($('schedule-races-per-series').value));
+        renderSchedulePreview();
+        setStatus(`Review all ${schedulePreview.length} individual races. Dates and start times are editable before publishing.`);
       } catch (error) {
         invalidatePreview();
         setStatus(error.message, true);
@@ -341,14 +422,21 @@
         const edit = document.createElement('button');
         edit.type = 'button';
         edit.className = 'outline';
-        edit.textContent = 'Adjust Start Date';
+        edit.textContent = 'Edit Season Schedule';
         edit.addEventListener('click', () => {
           $('schedule-year').value = year;
           $('schedule-start').value = first?.date || '';
           $('schedule-races-per-series').value = String(seasonRaces.filter(x => x.series === 'brian-murray').length || 5);
-          invalidatePreview();
+          skippedThursdays.clear();
+          renderSkips();
+          schedulePreview = [...seasonRaces].sort((a,b) => {
+            const aIndex = SERIES_SEQUENCE.findIndex(x => x[0] === a.series);
+            const bIndex = SERIES_SEQUENCE.findIndex(x => x[0] === b.series);
+            return aIndex - bIndex || (a.raceNumber || 0) - (b.raceNumber || 0);
+          }).map(({id, ...entry}) => ({...entry, id}));
+          renderSchedulePreview();
           $('schedule-start').focus();
-          setStatus(`Adjust the ${year} start date, preview, then publish the updated schedule.`);
+          setStatus(`Loaded the ${year} season. Edit any individual date, then publish to save.`);
         });
         card.append(title, detail, edit);
         list.append(card);
@@ -552,11 +640,9 @@
       if (savingSchedule || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return;
       try {
         const year = Number($('schedule-year').value);
-        const generated = buildSeason(year, $('schedule-start').value, Number($('schedule-races-per-series').value));
-        if (!schedulePreview || JSON.stringify(schedulePreview) !== JSON.stringify(generated)) {
-          throw new Error('Preview the current start date before publishing.');
-        }
-        if (!confirm(`Publish or replace the ${year} season with ${generated.length} races (${generated.length / 3} per series) at 7:00 PM on consecutive Thursdays?`)) return;
+        scheduleIsValid(true);
+        const generated = schedulePreview.map(race => ({...race}));
+        if (!confirm(`Publish these ${generated.length} individual scheduled races for ${year}? This will replace the previously generated schedule for this year.`)) return;
         savingSchedule = true;
         $('schedule-save').disabled = true;
         const batch = writeBatch(db);
@@ -581,10 +667,23 @@
         savingSchedule = false;
       }
     });
-    $('schedule-year').addEventListener('input', invalidatePreview);
+    $('schedule-year').addEventListener('input', () => {skippedThursdays.clear(); renderSkips(); invalidatePreview();});
     $('schedule-start').addEventListener('input', invalidatePreview);
     $('schedule-races-per-series').addEventListener('input', invalidatePreview);
     $('schedule-preview-button').addEventListener('click', previewSchedule);
+    $('skip-add').addEventListener('click', () => {
+      const value = $('skip-thursday').value;
+      const date = dateFromIso(value);
+      if (!date || date.getDay() !== 4 || String(date.getFullYear()) !== $('schedule-year').value) {
+        setStatus('Choose a Thursday in the selected racing year to skip.', true);
+        return;
+      }
+      skippedThursdays.add(value);
+      renderSkips();
+      previewSchedule();
+    });
+    renderSkips();
+
     $('schedule-year').value = String(new Date().getFullYear());
 
     $('filter-series').addEventListener('change', displayResults);
