@@ -61,13 +61,18 @@
     footer { text-align:center; background:var(--blue); color:var(--ice); font-size:12px; padding:20px; }
     @media(max-width:760px) { .layout,.field-row { grid-template-columns:1fr; } main { margin:30px auto; } .panel { padding:22px 18px; } }
     @media(max-width:520px) { .brand strong { font-size:23px; } .brand small { max-width:165px; } .back { font-size:12px; } }
+  
+    /* Official WHYRA club logo, retaining existing navigation and typography. */
+    .logo-emblem { width:78px; height:78px; flex:0 0 78px; border:0; border-radius:0; overflow:hidden; background:#fff; padding:3px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; }
+    .logo-emblem img { display:block; width:100%; height:100%; object-fit:contain; }
+    @media (max-width:540px) { .logo-emblem { width:59px; height:59px; flex-basis:59px; padding:2px; } }
   </style>
 </head>
 <body>
   <header>
     <div class="header-inner">
       <a class="brand" href="./index.html" aria-label="WHYRA Home">
-        <span class="emblem" aria-hidden="true">⛵</span>
+        <span class="emblem logo-emblem"><img src="./assets/whyra-logo.png" alt="" width="78" height="78" decoding="async" /></span>
         <span><strong>WHYRA</strong><small>Wilson Harbor Yacht Racing Association</small></span>
       </a>
       <a class="back" href="./index.html">← Public Website</a>
@@ -117,67 +122,6 @@
             <div class="button-row"><button id="sailwave-publish" type="submit">Publish Sailwave Results</button></div>
             <p id="sailwave-status" class="hint" role="status" aria-live="polite"></p>
           </form>
-        </div>
-        <div class="section layout">
-          <section aria-labelledby="edit-title">
-            <h2 id="edit-title">Publish Race Results</h2>
-            <p class="hint">Enter the race information and results. Save as a draft or publish immediately to Firestore.</p>
-            <form id="result-form">
-              <label for="race-series">Racing series</label>
-              <select id="race-series" required>
-                <option value="">Select a racing series</option>
-                <option value="brian-murray">Series 1 — Brian Murray</option>
-                <option value="dave-segal">Series 2 — Dave Segal</option>
-                <option value="low-water">Series 3 — Low Water</option>
-              </select>
-              <p class="hint">The racing season is determined by the race date. Older results can be assigned to a series by editing them.</p>
-              <label for="race-name">Race name</label>
-              <input id="race-name" type="text" maxlength="120" placeholder="Wednesday Night Series — Race 1" required />
-              <div class="field-row">
-                <div>
-                  <label for="race-date">Race date</label>
-                  <input id="race-date" type="date" required />
-                </div>
-                <div>
-                  <label for="race-division">Division / fleet (optional)</label>
-                  <input id="race-division" type="text" maxlength="80" placeholder="PHRF" />
-                </div>
-              </div>
-              <label for="race-results">Results</label>
-              <textarea id="race-results" maxlength="20000" required placeholder="1. Boat Name — Skipper — Corrected time&#10;2. Boat Name — Skipper — Corrected time"></textarea>
-              <p class="hint">Use one line per boat. These results are stored as text; PDF/CSV uploads will be added later.</p>
-              <label for="race-notes">Notes (optional)</label>
-              <textarea id="race-notes" maxlength="4000" style="min-height:80px" placeholder="Weather, course information, race committee notes…"></textarea>
-              <label class="checkbox-label" for="race-published"><input id="race-published" type="checkbox" checked /> Publish these results</label>
-              <p class="hint">Uncheck to save an administrator-only draft.</p>
-              <div class="button-row">
-                <button id="save-button" type="submit">Publish Results</button>
-                <button id="cancel-edit" class="outline" type="button" hidden>Cancel Editing</button>
-              </div>
-            </form>
-          </section>
-          <section aria-labelledby="saved-title">
-            <h2 id="saved-title">Saved Race Results</h2>
-            <p class="hint">Filter results by series and season, or edit older races to assign them to a series. Delete permanently removes that race.</p>
-            <div class="field-row">
-              <div>
-                <label for="filter-series">Filter series</label>
-                <select id="filter-series">
-                  <option value="all">All series</option>
-                  <option value="brian-murray">Series 1 — Brian Murray</option>
-                  <option value="dave-segal">Series 2 — Dave Segal</option>
-                  <option value="low-water">Series 3 — Low Water</option>
-                  <option value="unassigned">Unassigned (older results)</option>
-                </select>
-              </div>
-              <div>
-                <label for="filter-season">Filter year</label>
-                <select id="filter-season"><option value="all">All years</option></select>
-              </div>
-            </div>
-            <p id="results-loading" class="hint">Loading race results…</p>
-            <div id="results-list" aria-live="polite"></div>
-          </section>
         </div>
         <div class="section" aria-labelledby="schedule-heading">
           <h2 id="schedule-heading">Annual Race Schedule</h2>
@@ -272,40 +216,22 @@
     const dashboard = $('dashboard');
     const blocked = $('blocked');
     const loginButton = $('login-button');
-    const resultForm = $('result-form');
-    const saveButton = $('save-button');
-    let stopResults = null;
     let stopSchedule = null;
     let scheduledRaces = [];
     let schedulePreview = null;
     let savingSchedule = false;
     const skippedThursdays = new Set();
-    let currentResults = [];
-    let editingId = null;
-    let saving = false;
     const SERIES = {
       'brian-murray': 'Series 1 — Brian Murray',
       'dave-segal': 'Series 2 — Dave Segal',
       'low-water': 'Series 3 — Low Water'
     };
-    const seriesName = (key) => SERIES[key] || 'Unassigned (older result)';
-    const raceYear = (entry) => /^\d{4}-/.test(entry.date || '') ? entry.date.slice(0, 4) : 'Unknown';
 
 
     function setStatus(message, error = false) {
       $('status').textContent = message;
       $('status').classList.toggle('error', error);
       $('status').hidden = !message;
-    }
-
-    function resetEditor() {
-      editingId = null;
-      resultForm.reset();
-      $('race-published').checked = true;
-      $('race-series').value = '';
-      $('edit-title').textContent = 'Publish Race Results';
-      saveButton.textContent = 'Publish Results';
-      $('cancel-edit').hidden = true;
     }
 
     const SERIES_SEQUENCE = [
@@ -490,12 +416,6 @@
         edit.type = 'button';
         edit.className = 'outline';
         edit.textContent = 'Edit Season Schedule';
-        edit.disabled = entry.type === 'sailwave';
-        edit.title = edit.disabled ? 'Re-upload the Sailwave HTML file to replace these results.' : '';
-        if (entry.type === 'sailwave') {
-          edit.disabled = true;
-          edit.title = 'To update these series standings, upload a new Sailwave HTML file above.';
-        }
         edit.addEventListener('click', () => {
           $('schedule-year').value = year;
           $('schedule-start').value = first?.date || '';
@@ -525,109 +445,6 @@
       }, error => {
         $('schedule-loading').hidden = true;
         setStatus(`Unable to load race schedule: ${error.message}`, true);
-      });
-    }
-
-    function updateYearFilter() {
-      const control = $('filter-season');
-      const chosen = control.value;
-      const years = [...new Set(currentResults.map(raceYear))].sort((a, b) => b.localeCompare(a));
-      control.replaceChildren(new Option('All years', 'all'));
-      years.forEach(year => control.add(new Option(year, year)));
-      control.value = years.includes(chosen) ? chosen : 'all';
-    }
-
-    function displayResults() {
-      const list = $('results-list');
-      list.replaceChildren();
-      const selectedSeries = $('filter-series').value;
-      const selectedYear = $('filter-season').value;
-      const filteredResults = currentResults.filter(entry =>
-        (selectedSeries === 'all' || (selectedSeries === 'unassigned'
-          ? !SERIES[entry.series]
-          : entry.series === selectedSeries)) &&
-        (selectedYear === 'all' || raceYear(entry) === selectedYear)
-      );
-      if (filteredResults.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'hint';
-        empty.textContent = currentResults.length
-          ? 'No races match these filters.'
-          : 'No race results saved yet.';
-        list.append(empty);
-        return;
-      }
-      for (const entry of filteredResults) {
-        const card = document.createElement('article');
-        card.className = 'result-card';
-        const heading = document.createElement('h3');
-        heading.textContent = entry.name || 'Unnamed race';
-        const meta = document.createElement('p');
-        meta.textContent = [seriesName(entry.series), raceYear(entry), entry.date || 'No date', entry.division].filter(Boolean).join(' • ');
-        const pill = document.createElement('span');
-        pill.className = 'pill' + (entry.published ? '' : ' draft');
-        pill.textContent = entry.published ? 'Published' : 'Draft';
-        const results = document.createElement('pre');
-        results.textContent = entry.type === 'sailwave' ? 'Official Sailwave standings and individual race tables. Upload the revised HTML file to update.' : (entry.results || '');
-        const notes = document.createElement('p');
-        notes.textContent = entry.notes ? `Notes: ${entry.notes}` : '';
-        const actions = document.createElement('div');
-        actions.className = 'button-row';
-        const edit = document.createElement('button');
-        edit.className = 'outline';
-        edit.textContent = 'Edit';
-        edit.type = 'button';
-        edit.addEventListener('click', () => {
-          editingId = entry.id;
-          $('race-series').value = SERIES[entry.series] ? entry.series : '';
-          $('race-name').value = entry.name || '';
-          $('race-date').value = entry.date || '';
-          $('race-division').value = entry.division || '';
-          $('race-results').value = entry.results || '';
-          $('race-notes').value = entry.notes || '';
-          $('race-published').checked = entry.published === true;
-          $('edit-title').textContent = 'Edit Race Results';
-          saveButton.textContent = 'Save Changes';
-          $('cancel-edit').hidden = false;
-          $('race-name').focus();
-          setStatus('Editing selected race. Save Changes when finished.');
-        });
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'danger';
-        remove.textContent = 'Delete';
-        remove.addEventListener('click', async () => {
-          if (!confirm(`Permanently delete "${entry.name}" (${entry.date})?`)) return;
-          remove.disabled = true;
-          try {
-            await deleteDoc(doc(db, 'raceResults', entry.id));
-            if (editingId === entry.id) resetEditor();
-            setStatus('Race results deleted.');
-          } catch (error) {
-            setStatus(`Unable to delete: ${error.message}`, true);
-            remove.disabled = false;
-          }
-        });
-        actions.append(edit, remove);
-        card.append(heading, meta, pill, results);
-        if (entry.notes) card.append(notes);
-        card.append(actions);
-        list.append(card);
-      }
-    }
-
-    function startResultsListener() {
-      if (stopResults) stopResults();
-      $('results-loading').hidden = false;
-      stopResults = onSnapshot(collection(db, 'raceResults'), (snapshot) => {
-        currentResults = snapshot.docs.map((item) => ({ id:item.id, ...item.data() }));
-        currentResults.sort((a,b) => (b.date || '').localeCompare(a.date || '') || (a.name || '').localeCompare(b.name || ''));
-        $('results-loading').hidden = true;
-        updateYearFilter();
-        displayResults();
-      }, (error) => {
-        $('results-loading').hidden = true;
-        setStatus(`Unable to load race results: ${error.message}`, true);
       });
     }
 
@@ -687,13 +504,11 @@
       dashboard.hidden = !isAdmin;
       blocked.hidden = !user || isAdmin;
       if (!isAdmin) contactRequestToken++;
-      if (!isAdmin && stopResults) { stopResults(); stopResults = null; currentResults = []; resetEditor(); }
       if (!isAdmin && stopSchedule) { stopSchedule(); stopSchedule = null; scheduledRaces = []; invalidatePreview(); }
       if (!user) setStatus('Please sign in to continue.');
       else if (isAdmin) {
         $('signed-in-email').textContent = user.email || 'WHYRA administrator';
         setStatus('Secure administrator session active.');
-        startResultsListener();
         startScheduleListener();
         loadContactEditor();
       } else setStatus('This account does not have administrator permission.', true);
@@ -721,42 +536,6 @@
         };
         setStatus(messages[error.code] || 'Sign-in failed. Please try again.', true);
       } finally { loginButton.disabled = false; }
-    });
-
-    resultForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (saving || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return;
-      saving = true;
-      saveButton.disabled = true;
-      const payload = {
-        series: $('race-series').value,
-        season: $('race-date').value.slice(0, 4),
-        name: $('race-name').value.trim(),
-        date: $('race-date').value,
-        division: $('race-division').value.trim(),
-        results: $('race-results').value.trim(),
-        notes: $('race-notes').value.trim(),
-        published: $('race-published').checked,
-        updatedAt: serverTimestamp()
-      };
-      if (!SERIES[payload.series] || !payload.name || !payload.date || !payload.results) {
-        setStatus('Select a racing series and enter the race name, date, and results.', true);
-        saving = false;
-        saveButton.disabled = false;
-        return;
-      }
-      try {
-        if (editingId) {
-          await updateDoc(doc(db, 'raceResults', editingId), payload);
-          setStatus('Race results updated successfully.');
-        } else {
-          await addDoc(collection(db, 'raceResults'), { ...payload, createdAt:serverTimestamp() });
-          setStatus(payload.published ? 'Race results published to Firestore.' : 'Race results saved as a draft.');
-        }
-        resetEditor();
-      } catch (error) {
-        setStatus(`Unable to save race results: ${error.message}`, true);
-      } finally { saving = false; saveButton.disabled = false; }
     });
 
     $('schedule-form').addEventListener('submit', async event => {
@@ -811,13 +590,6 @@
     renderSkips();
 
     $('schedule-year').value = String(new Date().getFullYear());
-
-    $('filter-series').addEventListener('change', displayResults);
-    $('filter-season').addEventListener('change', displayResults);
-    $('race-published').addEventListener('change', () => {
-      if (!editingId) saveButton.textContent = $('race-published').checked ? 'Publish Results' : 'Save Draft';
-    });
-    $('cancel-edit').addEventListener('click', () => { resetEditor(); setStatus('Editing cancelled.'); });
 
     // Rebuild Sailwave's tabular content using only supported, inert HTML tags.
     // Never store or display raw browser scripts, event handlers, styles or external URLs.
